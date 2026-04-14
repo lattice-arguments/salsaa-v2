@@ -4,3 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rokoko = { git = "https://github.com/lattice-arguments/rokoko.git" }
+
+[features]
+default = []
+
+incomplete-rexl = ["rokoko/incomplete-rexl"]
+unsafe-sumcheck = ["rokoko/unsafe-sumcheck"]
+debug-hardness = ["rokoko/debug-hardness"]
+debug-decomp = ["rokoko/debug-decomp"]
+
+p-30 = ["rokoko/p-30"]
+p-26 = ["rokoko/p-26"]
+p-28 = ["rokoko/p-28"]
