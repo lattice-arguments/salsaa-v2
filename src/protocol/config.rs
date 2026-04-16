@@ -1,0 +1,316 @@
+use std::{sync::LazyLock};
+
+use rokoko::{
+    common::{
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
+        ring_arithmetic::{QuadraticExtension, RingElement},
+    },
+    protocol::{
+        commitment::{BasicCommitment, Prefix},
+        sumcheck_utils::polynomial::Polynomial,
+        config::{ConfigBase, SizeableProof},
+    },
+};
+
+use crate::{
+    common::config::*,
+    protocol::config_generator::build_round_config,
+};
+
+// 2^26 = 2^7 (DEGREE) * 2^19
+// 2^19 = 2^5 * 2^14
+
+pub struct SalsaaProofCommon {
+    pub sumcheck_transcript: Vec<Polynomial<QuadraticExtension>>,
+    pub ip_l2_claim: Option<RingElement>,
+    pub ip_linf_claim: Option<RingElement>,
+    pub(crate) claims: HorizontallyAlignedMatrix<RingElement>,
+}
+
+#[derive(Clone)]
+pub struct RoundConfigCommon {
+    pub main_witness_prefix: Prefix,
+    pub main_witness_columns: usize,
+    pub extended_witness_length: usize,
+    pub exact_binariness: bool, // whether the proof should be for exact binariness
+    pub vdf: bool,              // for the first round
+    pub l2: bool,               // whether the proof should be for l2 norm of the witness
+    pub inner_evaluation_claims: usize, // how many inner evaluation claims we want to make, this determines the number of type1 sumchecks we need
+}
+
+pub fn to_kb(size_in_bits: usize) -> f64 {
+    size_in_bits as f64 / 8.0 / 1024.0
+}
+
+#[derive(Clone)]
+pub enum RoundConfig {
+    Intermediate {
+        common: RoundConfigCommon,
+        decomposition_base_log: u64,
+        projection_ratio: usize, // set 0 for no projection
+        projection_prefix: Prefix,
+        next: Box<RoundConfig>,
+    },
+    IntermediateUnstructured {
+        projection_ratio: usize,
+        common: RoundConfigCommon,
+        decomposition_base_log: u64,
+        next: Box<RoundConfig>,
+    },
+    Last {
+        common: RoundConfigCommon,
+        projection_ratio: usize,
+    },
+}
+
+impl std::ops::Deref for RoundConfig {
+    type Target = RoundConfigCommon;
+    fn deref(&self) -> &RoundConfigCommon {
+        match self {
+            RoundConfig::Intermediate { common, .. } => common,
+            RoundConfig::Last { common, .. } => common,
+            RoundConfig::IntermediateUnstructured { common, .. } => common,
+        }
+    }
+}
+
+impl RoundConfig {
+    pub fn is_last(&self) -> bool {
+        matches!(self, RoundConfig::Last { .. })
+    }
+}
+
+fn ring_vec_size(v: &[RingElement]) -> usize {
+    v.iter().map(|e| e.size_in_bits()).sum()
+}
+
+impl ConfigBase for RoundConfig {
+    fn witness_height(&self) -> usize {
+        self.extended_witness_length
+            / (self.main_witness_columns * 2usize.pow(self.main_witness_prefix.length as u32))
+    }
+
+    fn witness_width(&self) -> usize {
+        self.main_witness_columns * 2usize.pow(self.main_witness_prefix.length as u32)
+    }
+
+    fn projection_ratio(&self) -> usize {
+        match self {
+            RoundConfig::Intermediate {
+                projection_ratio, ..
+            } => *projection_ratio,
+            RoundConfig::IntermediateUnstructured {
+                projection_ratio, ..
+            } => *projection_ratio,
+            RoundConfig::Last {
+                projection_ratio, ..
+            } => *projection_ratio,
+        }
+    }
+
+    fn projection_height(&self) -> usize {
+        PROJECTION_HEIGHT
+    }
+
+    fn basic_commitment_rank(&self) -> usize {
+        panic!("basic_commitment_rank is not defined for RoundConfig");
+    }
+}
+
+pub static CONFIG: LazyLock<RoundConfig> =
+    LazyLock::new(|| build_round_config(WITNESS_DIM * WITNESS_WIDTH * 2, true));
+
+pub enum SalsaaProof {
+    Intermediate {
+        projection_commitment: BasicCommitment,
+        common: SalsaaProofCommon,
+        new_claims: HorizontallyAlignedMatrix<RingElement>,
+        decomposed_split_commitment: BasicCommitment,
+        next: Box<SalsaaProof>,
+        claim_over_projection: Vec<RingElement>,
+    },
+    IntermediateUnstructured {
+        common: SalsaaProofCommon,
+        new_claims: Vec<RingElement>,
+        decomposed_split_commitment: BasicCommitment,
+        next: Box<SalsaaProof>,
+        projection_image_ct: VerticallyAlignedMatrix<RingElement>,
+        projection_image_batched: HorizontallyAlignedMatrix<RingElement>,
+    },
+    Last {
+        common: SalsaaProofCommon,
+        folded_witness: Vec<RingElement>,
+        projection_image_ct: VerticallyAlignedMatrix<RingElement>,
+        projection_image_batched: HorizontallyAlignedMatrix<RingElement>,
+    },
+}
+
+impl std::ops::Deref for SalsaaProof {
+    type Target = SalsaaProofCommon;
+    fn deref(&self) -> &SalsaaProofCommon {
+        match self {
+            SalsaaProof::Intermediate { common, .. } => common,
+            SalsaaProof::Last { common, .. } => common,
+            SalsaaProof::IntermediateUnstructured { common, .. } => common,
+        }
+    }
+}
+
+impl SizeableProof for SalsaaProof {
+    fn size_in_bits(&self) -> usize {
+        let common = &**self;
+
+        // Sumcheck transcript (polynomials)
+        let mut polys_size = 0;
+        for poly in &common.sumcheck_transcript {
+            for coeff in &poly.coefficients[0..poly.num_coefficients] {
+                polys_size += coeff.size_in_bits();
+            }
+        }
+        println!("  Polys: {:.2} KB", to_kb(polys_size));
+
+        // Claims matrix
+        let claims_size = ring_vec_size(&common.claims.data);
+        println!("  Claims: {:.2} KB", to_kb(claims_size));
+
+        // Claim over projection
+        let proj_claim_size = match self {
+            SalsaaProof::Intermediate {
+                claim_over_projection,
+                ..
+            } => ring_vec_size(claim_over_projection),
+            SalsaaProof::Last { .. } => 0,
+            SalsaaProof::IntermediateUnstructured { .. } => 0,
+        };
+
+        println!("  Claim over projection: {:.2} KB", to_kb(proj_claim_size));
+
+        // Projection commitment
+        let proj_commit_size = match self {
+            SalsaaProof::Intermediate {
+                projection_commitment,
+                ..
+            } => ring_vec_size(&projection_commitment.data),
+            SalsaaProof::Last { .. } => 0,
+            SalsaaProof::IntermediateUnstructured { .. } => 0,
+        };
+
+        println!("  Projection commitment: {:.2} KB", to_kb(proj_commit_size));
+
+        // Norm claims
+        let l2_size = common.ip_l2_claim.as_ref().map_or(0, |c| c.size_in_bits());
+        let linf_size = common
+            .ip_linf_claim
+            .as_ref()
+            .map_or(0, |c| c.size_in_bits());
+        println!(
+            "  L2 claim: {:.2} KB, Linf claim: {:.2} KB",
+            to_kb(l2_size),
+            to_kb(linf_size)
+        );
+
+        let mut round_size =
+            polys_size + claims_size + proj_claim_size + proj_commit_size + l2_size + linf_size;
+
+        match self {
+            SalsaaProof::Intermediate {
+                new_claims,
+                decomposed_split_commitment,
+                next,
+                ..
+            } => {
+                let new_claims_size = ring_vec_size(&new_claims.data);
+                println!("  New claims: {:.2} KB", to_kb(new_claims_size));
+
+                let decomp_commit_size = ring_vec_size(&decomposed_split_commitment.data);
+                println!(
+                    "  Decomposed split commitment: {:.2} KB",
+                    to_kb(decomp_commit_size)
+                );
+
+                round_size += new_claims_size + decomp_commit_size;
+                println!("  Round total: {:.2} KB", to_kb(round_size));
+
+                round_size + next.size_in_bits()
+            }
+            SalsaaProof::Last {
+                folded_witness,
+                projection_image_ct,
+                projection_image_batched,
+                ..
+            } => {
+                let folded_size = ring_vec_size(folded_witness);
+                println!("  Folded witness: {:.2} KB", to_kb(folded_size));
+
+                let projection_image_size = ring_vec_size(&projection_image_ct.data);
+                println!("  Projection image: {:.2} KB", to_kb(projection_image_size));
+
+                let batched_projection_size = ring_vec_size(&projection_image_batched.data);
+                println!(
+                    "  Batched projection: {:.2} KB",
+                    to_kb(batched_projection_size)
+                );
+
+                round_size += folded_size + batched_projection_size + projection_image_size;
+                println!("  Round total (last): {:.2} KB", to_kb(round_size));
+
+                round_size
+            }
+            SalsaaProof::IntermediateUnstructured {
+                new_claims,
+                decomposed_split_commitment,
+                projection_image_batched,
+                next,
+                ..
+            } => {
+                let new_claims_size = ring_vec_size(new_claims);
+                println!("  New claims: {:.2} KB", to_kb(new_claims_size));
+
+                let decomp_commit_size = ring_vec_size(&decomposed_split_commitment.data);
+                println!(
+                    "  Decomposed split commitment: {:.2} KB",
+                    to_kb(decomp_commit_size)
+                );
+
+                let projection_image_size = 256 * 64; // over estimated
+                println!("  Projection image: {:.2} KB", to_kb(projection_image_size));
+
+                let batched_projection_size = ring_vec_size(&projection_image_batched.data);
+                println!(
+                    "  Batched projection: {:.2} KB",
+                    to_kb(batched_projection_size)
+                );
+
+                round_size += new_claims_size
+                    + decomp_commit_size
+                    + projection_image_size
+                    + batched_projection_size;
+                println!("  Round total: {:.2} KB", to_kb(round_size));
+
+                round_size + next.size_in_bits()
+            }
+        }
+    }
+}
+
+#[inline]
+pub fn paste_by_prefix(dest: &mut Vec<RingElement>, src: &Vec<RingElement>, prefix: &Prefix) {
+    debug_assert_eq!(
+        src.len().next_power_of_two(),
+        1 << (dest.len().ilog2() as usize - prefix.length),
+        "Pasting failed. Source length does not match prefix length."
+    );
+    // e.g. if dest.len() = 2048, prefix.length = 4, prefix.prefix = 9 (0b1001)
+    // then start = 9 << (11 - 4) = 9 << 7 = 1152 = 10010000000 index to start pasting
+    let start = prefix.prefix << (dest.len().ilog2() as usize - prefix.length);
+    unsafe {
+        std::ptr::copy_nonoverlapping(src.as_ptr(), dest.as_mut_ptr().add(start), src.len());
+    }
+}
+
+#[inline]
+pub fn slice_by_prefix(src: &Vec<RingElement>, prefix: &Prefix) -> Vec<RingElement> {
+    let start = prefix.prefix << (src.len().ilog2() as usize - prefix.length);
+    let length = 1 << (src.len().ilog2() as usize - prefix.length);
+    src[start..start + length].to_vec()
+}

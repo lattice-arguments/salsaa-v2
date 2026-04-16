@@ -1,12 +1,22 @@
 use crate::{
+    common::config::*,
+    protocol::{
+        config::RoundConfig,
+        sumchecks::context_verifier::{
+            L2VerifierSumcheckContext, LinfVerifierSumcheckContext, Type1VerifierSumcheckContext,
+            Type31VerifierSumcheckContext, Type3VerifierSumcheckContext,
+            VDFVerifierSumcheckContext, VerifierSumcheckContext,
+        },
+    }
+};
+
+use rokoko::{
     common::{
         arithmetic::ALL_ONE_COEFFS,
-        config::*,
         ring_arithmetic::{QuadraticExtension, RingElement},
     },
     protocol::{
         commitment::Prefix,
-        config::RoundConfig,
         sumcheck_utils::{
             combiner::CombinerEvaluation,
             common::EvaluationSumcheckData,
@@ -20,13 +30,9 @@ use crate::{
             ring_to_field_combiner::RingToFieldCombinerEvaluation,
             selector_eq::SelectorEqEvaluation,
         },
-        sumchecks::context_verifier::{
-            L2VerifierSumcheckContext, LinfVerifierSumcheckContext, Type1VerifierSumcheckContext,
-            Type31VerifierSumcheckContext, Type3VerifierSumcheckContext,
-            VDFVerifierSumcheckContext, VerifierSumcheckContext,
-        },
     },
 };
+
 use std::array;
 
 fn selector_evaluation_from_prefix(

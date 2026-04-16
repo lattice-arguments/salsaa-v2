@@ -1,13 +1,17 @@
-use crate::common::config::*;
-use crate::common::norms::l2_norm_coeffs;
-use crate::protocol::config::{RoundConfig, SalsaaProof};
-use crate::protocol::project::BatchingChallenges;
-use crate::protocol::project_2::verifier_sample_projection_challenges;
-use crate::protocol::sumchecks::context_verifier::VerifierSumcheckContext;
 use crate::{
+    common::config::*,
+    protocol::{
+        config::{RoundConfig, SalsaaProof},
+        vdf::{compute_ip_df_claim, VDFCrs},
+        sumchecks::context_verifier::VerifierSumcheckContext,
+        project::BatchingChallenges,
+    },
+};
+
+use rokoko::{
     common::{
+        norms::l2_norm_coeffs,
         arithmetic::{field_to_ring_element_into, precompute_structured_values_fast, ONE},
-        config::{DEGREE, HALF_DEGREE, MOD_Q, NOF_BATCHES},
         decomposition::compose_from_decomposed,
         hash::HashWrapper,
         matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
@@ -21,8 +25,7 @@ use crate::{
         commitment::{commit_basic, BasicCommitment},
         crs::CRS,
         open::evaluation_point_to_structured_row,
-        project_2::BatchedProjectionChallengesSuccinct,
-        vdf::{compute_ip_vdf_claim, VDFCrs},
+        project_2::{BatchedProjectionChallengesSuccinct, verifier_sample_projection_challenges},
     },
 };
 use std::array;
@@ -36,7 +39,7 @@ fn batch_claims(
     evaluation_points_outer: &[RingElement],
     ip_l2_claim: Option<&RingElement>,
     ip_linf_claim: Option<&RingElement>,
-    ip_vdf_claim: Option<&RingElement>,
+    ip_df_claim: Option<&RingElement>,
     type31_claims: &[RingElement],
     combination: &[RingElement],
 ) -> RingElement {
@@ -82,7 +85,7 @@ fn batch_claims(
 
     // VDF: product sumcheck claim = -y_0 + c^{2K} · y_t
     if config.vdf {
-        let mut weighted = ip_vdf_claim
+        let mut weighted = ip_df_claim
             .expect("Missing vdf claim in proof while vdf is enabled")
             .clone();
         weighted *= &combination[idx];
@@ -329,7 +332,7 @@ pub fn verifier_round(
         &evaluation_points_outer,
         proof.ip_l2_claim.as_ref(),
         proof.ip_linf_claim.as_ref(),
-        compute_ip_vdf_claim(
+        compute_ip_df_claim(
             config,
             vdf_challenge.as_ref(),
             vdf_outputs.map(|(y_0, y_t)| (y_0, y_t, vdf_crs_param.unwrap())),

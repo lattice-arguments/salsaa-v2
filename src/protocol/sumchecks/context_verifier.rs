@@ -1,4 +1,4 @@
-use crate::{
+use rokoko::{
     common::{
         config::NOF_BATCHES,
         ring_arithmetic::{QuadraticExtension, RingElement},
