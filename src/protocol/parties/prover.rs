@@ -1,7 +1,6 @@
-use crate::{
+use rokoko::{
     common::{
         arithmetic::{ALL_ONE_COEFFS, ONE, ZERO},
-        config::{NOF_BATCHES, *},
         decomposition::{compose_from_decomposed, decompose_chunks_into},
         hash::HashWrapper,
         matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
@@ -11,15 +10,24 @@ use crate::{
     },
     protocol::{
         commitment::{commit_basic, commit_basic_internal},
-        config::{paste_by_prefix, RoundConfig, SalsaaProof, SalsaaProofCommon},
         crs::CRS,
         fold::fold,
         open::evaluation_point_to_structured_row,
-        project::{prepare_i16_witness, project, BatchingChallenges},
+        project::{prepare_i16_witness, project},
         project_2::{batch_projection_n_times, project_coefficients, BatchedProjectionChallenges},
         sumcheck_utils::{common::HighOrderSumcheckData},
-        sumchecks::{context::ProverSumcheckContext, runner::sumcheck},
-        vdf::{compute_ip_vdf_claim, VDFCrs},
+    },
+};
+
+use crate::{
+    common::{
+        config::*,
+    },
+    protocol::{
+        config::{paste_by_prefix, RoundConfig, SalsaaProof, SalsaaProofCommon},
+        sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
+        project::BatchingChallenges,
+        vdf::{compute_ip_df_claim, VDFCrs},
     },
 };
 
@@ -44,7 +52,7 @@ fn structured_round(
         ..
     } = config
     else {
-        unreachable!()
+        unreachable!("Expected RoundConfig::Intermediate, got mismatch")
     };
 
     let witness_16 = prepare_i16_witness(witness);
@@ -97,9 +105,9 @@ fn structured_round(
         &witness_conjugated,
         evaluation_points_inner,
         &evaluation_points_outer,
-        &Some(projection_matrix),
-        &Some(batching_challenges),
-        &None,
+        Some(&projection_matrix),
+        Some(&batching_challenges),
+        None,
         vdf_challenge.as_ref(),
         vdf_params.map(|(_, _, crs)| crs),
     );
@@ -267,7 +275,7 @@ fn unstructured_round(
         ..
     } = config
     else {
-        unreachable!()
+        unreachable!("Expected RoundConfig::IntermediateUnstructured, got mismatch")
     };
 
     let mut projection_matrix = ProjectionMatrix::new(*projection_ratio, PROJECTION_HEIGHT);
@@ -317,9 +325,9 @@ fn unstructured_round(
         &witness_conjugated,
         evaluation_points_inner,
         &evaluation_points_outer,
-        &None,
-        &None,
-        &Some(unstructured_batching_challenges.clone()),
+        None,
+        None,
+        Some(&unstructured_batching_challenges),
         vdf_challenge.as_ref(),
         None,
     );
@@ -435,7 +443,7 @@ fn last_round(
         projection_ratio, ..
     } = config
     else {
-        unreachable!()
+        unreachable!("Expected RoundConfig::Last, got mismatch")
     };
 
     println!(
@@ -492,9 +500,9 @@ fn last_round(
         &witness_conjugated,
         evaluation_points_inner,
         &evaluation_points_outer,
-        &None,
-        &None,
-        &Some(unstructured_batching_challenges.clone()),
+        None,
+        None,
+        Some(&unstructured_batching_challenges),
         vdf_challenge.as_ref(),
         None,
     );
@@ -648,7 +656,7 @@ fn debug_assertions_intermediate(
     if !DEBUG {
         return;
     }
-    let ip_vdf_claim = compute_ip_vdf_claim(config, vdf_challenge, vdf_params);
+    let ip_df_claim = compute_ip_df_claim(config, vdf_challenge, vdf_params);
     if !sumcheck_context.type1sumcheck.is_empty() {
         let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
         let mut expected_claim = ZERO.clone();
@@ -718,13 +726,15 @@ fn debug_assertions_unstructured(
     println!(
         "Unstructured projection claims from the sumcheck match the expected projection claims"
     );
-    debug_assertions_common(sumcheck_context, config, None);
+    debug_assertions_common(sumcheck_context, config, None, None, None);
 }
 
 fn debug_assertions_common(
     sumcheck_context: &ProverSumcheckContext,
     config: &RoundConfig,
-    ip_vdf_claim: Option<RingElement>,
+    ip_df_claim: Option<RingElement>,
+    ip_l2_claim: Option<RingElement>,
+    ip_linf_claim: Option<RingElement>,
 ) {
     if config.l2 {
         let l2_claim = sumcheck_context
@@ -765,7 +775,7 @@ fn debug_assertions_common(
             .claim();
         assert_eq!(
             vdf_claim,
-            ip_vdf_claim.clone().unwrap(),
+            ip_df_claim.clone().unwrap(),
             "VDF claim from the sumcheck does not match the expected VDF claim"
         );
     }

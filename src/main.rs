@@ -1,7 +1,6 @@
 use rokoko::common::init_common;
 use rokoko::common::pool::{load_and_preallocate, save_access_stats};
-// use rokoko::protocol::parties::executor::execute;
-use rokoko::protocol::parties::executor::execute;
+use salsaa::protocol::parties::executor::execute;
 
 fn main() {
     #[cfg(feature = "unsafe-sumcheck")]

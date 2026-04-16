@@ -1,26 +1,33 @@
 use std::array;
 
-use crate::common::arithmetic::ALL_ONE_COEFFS;
-use crate::protocol::crs::CRS;
-use crate::protocol::sumcheck_utils::diff::DiffSumcheck;
-use crate::protocol::sumcheck_utils::ring_to_field_combiner::RingToFieldCombiner;
-use crate::protocol::sumchecks::helpers::sumcheck_from_prefix;
-use crate::{
-    common::config::*,
-    common::ring_arithmetic::RingElement,
+use rokoko::{
+    common::{
+        ring_arithmetic::RingElement,
+        arithmetic::ALL_ONE_COEFFS,
+    },
     protocol::{
-        config::RoundConfig,
+        crs::CRS,
         sumcheck_utils::{
             combiner::Combiner, common::HighOrderSumcheckData, elephant_cell::ElephantCell,
-            linear::LinearSumcheck, product::ProductSumcheck,
+            linear::LinearSumcheck, product::ProductSumcheck, diff::DiffSumcheck,
+            ring_to_field_combiner::RingToFieldCombiner
         },
-        sumchecks::context::{
+    },
+};
+
+use crate::{
+    common::config::*,
+    protocol::{
+        config::RoundConfig,
+        sumchecks::context_prover::{
             L2ProverSumcheckContext, LinfSumcheckContext, ProverSumcheckContext,
             Type1ProverSumcheckContext, Type31ProverSumcheckContext, Type3ProverSumcheckContext,
             VDFProverSumcheckContext,
         },
+        sumchecks::helpers::sumcheck_from_prefix,
     },
 };
+
 
 fn init_prover_type_1_sumcheck(
     config: &RoundConfig,

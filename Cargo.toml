@@ -1,5 +1,5 @@
 [package]
-name = "salsaa-v2"
+name = "salsaa"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,7 +7,7 @@ edition = "2024"
 rokoko = { git = "https://github.com/lattice-arguments/rokoko.git" }
 
 [features]
-default = []
+default = ["rokoko/p-28"]
 
 incomplete-rexl = ["rokoko/incomplete-rexl"]
 unsafe-sumcheck = ["rokoko/unsafe-sumcheck"]

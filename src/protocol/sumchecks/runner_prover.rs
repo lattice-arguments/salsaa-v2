@@ -1,7 +1,6 @@
-use crate::{
+use rokoko::{
     common::{
         arithmetic::field_to_ring_element_into,
-        config::DEBUG,
         hash::HashWrapper,
         matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
@@ -9,12 +8,19 @@ use crate::{
         sumcheck_element::SumcheckElement,
     },
     protocol::{
-        config::RoundConfig,
         open::evaluation_point_to_structured_row,
         sumcheck_utils::{common::HighOrderSumcheckData, polynomial::Polynomial},
-        sumchecks::context::ProverSumcheckContext,
     },
 };
+
+use crate::{
+    common::config::DEBUG,
+    protocol::{
+        config::RoundConfig,
+        sumchecks::context_prover::ProverSumcheckContext,
+    }
+};
+
 
 pub fn sumcheck(
     sumcheck_context: &mut ProverSumcheckContext,

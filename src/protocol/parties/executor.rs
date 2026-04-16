@@ -1,17 +1,23 @@
 use crate::{
+    common:: config::*,
+    protocol::{
+        config::{to_kb, CONFIG},
+        parties::{prover::prover_round, verifier::verifier_round},
+        sumchecks::{builder_prover::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck},
+        vdf::{delay_function, vdf_init},
+    },
+};
+
+use rokoko::{
     common::{
-        config::*,
         hash::HashWrapper,
         matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{Representation, RingElement},
     },
     protocol::{
         commitment::commit_basic,
-        config::{to_kb, SizeableProof, CONFIG},
+        config::SizeableProof,
         crs::CRS,
-        parties::{prover::prover_round, verifier::verifier_round},
-        sumchecks::{builder::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck},
-        vdf::{run_vdf, vdf_init},
     },
 };
 
@@ -98,7 +104,7 @@ pub fn execute() {
     println!("CRS generated. Starting execution...");
     let y_0: [RingElement; VDF_MATRIX_HEIGHT] =
         std::array::from_fn(|_| RingElement::random(Representation::IncompleteNTT)); // TODO: from hash
-    let vdf_output = run_vdf(&y_0, WITNESS_DIM, &vdf_crs);
+    let vdf_output = delay_function(&y_0, WITNESS_DIM, &vdf_crs);
 
     let mut sumcheck_context = init_prover_sumcheck(&crs, &CONFIG);
 

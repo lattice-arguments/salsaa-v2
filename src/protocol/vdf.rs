@@ -1,11 +1,14 @@
 use crate::{
+    common::config::*,
+    protocol::config::RoundConfig,
+};
+use rokoko::{
     common::{
-        config::*,
         matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{Representation, RingElement},
     },
-    protocol::config::RoundConfig,
 };
+
 pub struct VDFCrs {
     pub data: HorizontallyAlignedMatrix<RingElement>,
 }
@@ -14,9 +17,7 @@ pub struct VDFOutput {
     pub y_t: [RingElement; VDF_MATRIX_HEIGHT],
     pub trace_witness: VerticallyAlignedMatrix<RingElement>,
 }
-pub fn run_vdf(y_0: &[RingElement; VDF_MATRIX_HEIGHT], dim: usize, vdf_crs: &VDFCrs) -> VDFOutput {
-    let vdf_crs_ref = vdf_crs;
-
+pub fn delay_function(y_0: &[RingElement; VDF_MATRIX_HEIGHT], dim: usize, vdf_crs: &VDFCrs) -> VDFOutput {
     // VDF with G = I_{HEIGHT} ⊗ g^T (gadget) and A (HEIGHT × WIDTH CRS matrix).
     //
     // Per step:
@@ -63,7 +64,7 @@ pub fn run_vdf(y_0: &[RingElement; VDF_MATRIX_HEIGHT], dim: usize, vdf_crs: &VDF
 
         for r in 0..VDF_MATRIX_HEIGHT {
             for j in 0..VDF_MATRIX_WIDTH {
-                temp *= (&vdf_crs_ref.data[(r, j)], &trace_witness.data[data_offset + j]);
+                temp *= (&vdf_crs.data[(r, j)], &trace_witness.data[data_offset + j]);
                 if j == 0 {
                     y_next[r].set_from(&temp);
                 } else {
@@ -94,8 +95,8 @@ pub fn run_vdf(y_0: &[RingElement; VDF_MATRIX_HEIGHT], dim: usize, vdf_crs: &VDF
     }
 }
 
-/// Computes ip_vdf_claim = Σ_r c^r·(-y_0[r]) + c^{VDF_STRIDE·2K+r}·y_t[r] from the VDF challenge and outputs.
-pub fn compute_ip_vdf_claim(
+/// Computes ip_df_claim = Σ_r c^r·(-y_0[r]) + c^{VDF_STRIDE·2K+r}·y_t[r] from the VDF challenge and outputs.
+pub fn compute_ip_df_claim(
     config: &RoundConfig,
     vdf_challenge: Option<&RingElement>,
     vdf_params: Option<(
