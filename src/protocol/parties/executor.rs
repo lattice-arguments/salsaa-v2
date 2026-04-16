@@ -98,7 +98,7 @@ pub fn decompose_binary_into(element: &RingElement, target: &mut [RingElement]) 
 pub fn execute() {
     println!("Generating CRS...");
 
-    let crs = CRS::gen_crs(WITNESS_DIM, 8);
+    let crs = CRS::gen_crs(WITNESS_DIM, RANK);
     let vdf_crs = vdf_init();
 
     println!("CRS generated. Starting execution...");
