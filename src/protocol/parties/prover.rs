@@ -1,21 +1,9 @@
 use rokoko::{
     common::{
-        arithmetic::{ALL_ONE_COEFFS, ONE, ZERO},
-        decomposition::{compose_from_decomposed, decompose_chunks_into},
-        hash::HashWrapper,
-        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
-        projection_matrix::ProjectionMatrix,
-        ring_arithmetic::{Representation, RingElement},
-        structured_row::{PreprocessedRow, StructuredRow},
+        arithmetic::{ALL_ONE_COEFFS, ONE, ZERO}, decomposition::{compose_from_decomposed, decompose_chunks_into}, estimator::{RSISParameters, estimate_rsis_security}, hash::HashWrapper, matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated}, norms, projection_matrix::ProjectionMatrix, ring_arithmetic::{Representation, RingElement}, structured_row::{PreprocessedRow, StructuredRow}
     },
     protocol::{
-        commitment::{commit_basic, commit_basic_internal},
-        crs::CRS,
-        fold::fold,
-        open::evaluation_point_to_structured_row,
-        project::{prepare_i16_witness, project},
-        project_2::{batch_projection_n_times, project_coefficients, BatchedProjectionChallenges},
-        sumcheck_utils::{common::HighOrderSumcheckData},
+        commitment::{commit_basic, commit_basic_internal}, config::ConfigBase, crs::CRS, fold::fold, open::evaluation_point_to_structured_row, project::{prepare_i16_witness, project}, project_2::{BatchedProjectionChallenges, batch_projection_n_times, project_coefficients}, sumcheck_utils::common::HighOrderSumcheckData
     },
 };
 
@@ -166,6 +154,23 @@ fn structured_round(
         data: new_vec_zero_preallocated(split_witness.height * 8),
         used_cols: 8,
     };
+
+    if DEBUG_HARDNESS {
+        let norm = norms::l2_norm(&split_witness.data);
+        let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
+
+        let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
+
+        let sec = estimate_rsis_security(
+            &RSISParameters {
+                m: config.witness_height() as u64,
+                n: RANK as u64,
+                length_bound: norm_unfolded as u64,
+            }
+        );
+        println!("Estimated security against RSIS attack for structured round: {} bits", sec.unwrap().secpar);
+    }
+
     decompose_chunks_into(
         &mut decomposed_split_witness.data[..split_witness.height * 2],
         &split_witness.data[..split_witness.height],
@@ -374,6 +379,25 @@ fn unstructured_round(
         2,
     );
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, RANK);
+
+
+    //  if DEBUG_HARDNESS {
+    //     let norm = norms::l2_norm(&decomposed_split_witness.data);
+    //     let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
+
+    //     let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
+
+    //     let sec = estimate_rsis_security(
+    //         &RSISParameters {
+    //             m: config.witness_height() as u64,
+    //             n: RANK as u64,
+    //             length_bound: norm_unfolded as u64,
+    //         }
+    //     );
+    //     println!("Estimated security against RSIS attack for the unstructured round: {} bits", sec.unwrap().secpar);
+    // }
+
+
     let outer_points_len =
         config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
 
