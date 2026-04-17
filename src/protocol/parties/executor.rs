@@ -40,59 +40,6 @@ pub fn binary_witness_sampler() -> VerticallyAlignedMatrix<RingElement> {
     }
 }
 
-/// Decomposes a RingElement into 64 bit-plane RingElements, writing into `target`.
-/// target\[b\].v\[j\] = (element.v\[j\] >> b) & 1 for each coefficient j and bit b.
-/// The input is assumed to be in IncompleteNTT; we convert to EvenOddCoefficients
-/// to access raw coefficients, decompose, then convert each result back.
-pub fn decompose_binary_into(element: &RingElement, target: &mut [RingElement]) {
-    assert!(
-        target.len() >= 64,
-        "target slice must have at least 64 elements"
-    );
-
-    let mut tmp = element.clone();
-    tmp.from_incomplete_ntt_to_even_odd_coefficients();
-
-    for bit_elem in target[..64].iter_mut() {
-        *bit_elem = RingElement::zero(Representation::EvenOddCoefficients);
-    }
-
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
-    {
-        use std::arch::x86_64::*;
-        unsafe {
-            let one = _mm512_set1_epi64(1);
-            // Process 8 coefficients at a time
-            for chunk_start in (0..DEGREE).step_by(8) {
-                let coeffs = _mm512_loadu_epi64(tmp.v[chunk_start..].as_ptr() as *const i64);
-                for b in 0..64u64 {
-                    let shift_amt = _mm512_set1_epi64(b as i64);
-                    let shifted = _mm512_srlv_epi64(coeffs, shift_amt);
-                    let masked = _mm512_and_epi64(shifted, one);
-                    _mm512_storeu_epi64(
-                        target[b as usize].v[chunk_start..].as_mut_ptr() as *mut i64,
-                        masked,
-                    );
-                }
-            }
-        }
-    }
-
-    #[cfg(not(all(target_arch = "x86_64", target_feature = "avx512f")))]
-    {
-        for j in 0..DEGREE {
-            let val = tmp.v[j];
-            for b in 0..64usize {
-                target[b].v[j] = (val >> b) & 1;
-            }
-        }
-    }
-
-    for bit_elem in target[..64].iter_mut() {
-        bit_elem.from_even_odd_coefficients_to_incomplete_ntt_representation();
-    }
-}
-
 pub fn execute() {
     println!("Generating CRS...");
 
