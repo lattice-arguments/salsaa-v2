@@ -31,8 +31,8 @@ pub fn sumcheck(
     Vec<RingElement>,
 ) {
     let mut num_vars = sumcheck_context.combiner.borrow().variable_count();
-    let mut time_poly = 0u128;
-    let mut time_eval = 0u128;
+    let mut time_poly = std::time::Duration::ZERO;
+    let mut time_eval = std::time::Duration::ZERO;
     let mut evaluation_points = Vec::new();
     let mut polys = Vec::new();
 
@@ -44,7 +44,7 @@ pub fn sumcheck(
             .field_combiner
             .borrow_mut()
             .univariate_polynomial_into(&mut poly_over_field);
-        time_poly += t1.elapsed().as_millis();
+        time_poly += t1.elapsed();
 
         hash_wrapper.update_with_quadratic_extension_slice(&poly_over_field.coefficients);
         let mut r = RingElement::zero(Representation::IncompleteNTT);
@@ -56,7 +56,7 @@ pub fn sumcheck(
 
         let t2 = std::time::Instant::now();
         sumcheck_context.partial_evaluate_all(&r);
-        time_eval += t2.elapsed().as_millis();
+        time_eval += t2.elapsed();
 
         polys.push(poly_over_field);
     }
@@ -67,7 +67,7 @@ pub fn sumcheck(
 
     if DEBUG {
         println!(
-            "Polynomial time: {:?} ms, Evaluation time: {:?} ms",
+            "Polynomial time: {:?}, Evaluation time: {:?}",
             time_poly, time_eval
         );
     }
