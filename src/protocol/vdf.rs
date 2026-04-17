@@ -154,6 +154,8 @@ pub fn vdf_init() -> VDFCrs {
 /// target\[b\].v\[j\] = (element.v\[j\] >> b) & 1 for each coefficient j and bit b.
 /// The input is assumed to be in IncompleteNTT; we convert to EvenOddCoefficients
 /// to access raw coefficients, decompose, then convert each result back.
+
+// TODO: deal with input with helper?
 pub fn decompose_binary_into(element: &RingElement, target: &mut [RingElement]) {
     assert!(
         target.len() >= 64,
