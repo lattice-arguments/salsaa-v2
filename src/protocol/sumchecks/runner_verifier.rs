@@ -1,36 +1,128 @@
 use rokoko::{
     common::{
-        arithmetic::field_to_ring_element_into,
+        arithmetic::{field_to_ring_element_into, precompute_structured_values_fast},
         hash::HashWrapper,
-        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
+        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix},
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
-        structured_row::PreprocessedRow,
         sumcheck_element::SumcheckElement,
-    }
+    },
+    protocol::{
+        sumcheck_utils::polynomial::Polynomial,
+        project_2::BatchedProjectionChallengesSuccinct,
+    },
 };
 use crate::{
+    common::config::*,
     protocol::{
-        config::RoundConfig,
-        open::evaluation_point_to_structured_row,
-        sumcheck_utils::{common::HighOrderSumcheckData, polynomial::Polynomial},
-        sumchecks::context::VerifierSumcheckContext,
+        config::{RoundConfig, SalsaaProof}, sumchecks::context_verifier::VerifierSumcheckContext, vdf::{VDFCrs, compute_ip_df_claim}
     },
 };
 
-fn sumcheck_verifier(
-    config: &SumcheckConfig,
+
+/// Computes the batched claim from individual sumcheck claims.
+/// Type1 sumchecks are product sumchecks with claims = <evaluation_outer, column_claims>,
+/// Type3 is a diff sumcheck with claim = 0.
+fn batch_claims(
+    config: &RoundConfig,
+    claims: &HorizontallyAlignedMatrix<RingElement>,
+    evaluation_points_outer: &[RingElement],
+    ip_l2_claim: Option<&RingElement>,
+    ip_linf_claim: Option<&RingElement>,
+    ip_df_claim: Option<&RingElement>,
+    type31_claims: &[RingElement],
+    combination: &[RingElement],
+) -> RingElement {
+    let mut batched_claim = RingElement::zero(Representation::IncompleteNTT);
+    let mut idx = 0;
+
+    // Type1 sumchecks: claim = <evaluation_outer, column_claims[i]>
+    for i in 0..config.inner_evaluation_claims {
+        let mut type1_claim = RingElement::zero(Representation::IncompleteNTT);
+        for (c, r) in claims.row(i).iter().zip(evaluation_points_outer.iter()) {
+            type1_claim += &(c * r);
+        }
+        let mut weighted = type1_claim;
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
+    if let RoundConfig::Intermediate { .. } = config {
+        // zero claim, nothing to add
+        idx += 1;
+    }
+
+    // L2: product sumcheck over conjugated witness and selected witness.
+    if config.l2 {
+        let mut weighted = ip_l2_claim
+            .expect("Missing l2 claim in proof while l2 constraint is enabled")
+            .clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
+    // Linf: exact-binariness sumcheck claim.
+    if config.exact_binariness {
+        let mut weighted = ip_linf_claim
+            .expect("Missing linf claim in proof while exact_binariness is enabled")
+            .clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
+    // VDF: product sumcheck claim = -y_0 + c^{2K} · y_t
+    if config.vdf {
+        let mut weighted = ip_df_claim
+            .expect("Missing vdf claim in proof while vdf is enabled")
+            .clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
+    // Type31: projection sumcheck claims for IntermediateUnstructured
+    for type31_claim in type31_claims {
+        let mut weighted = type31_claim.clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
+    assert_eq!(
+        idx,
+        combination.len(),
+        "batch_claims: index mismatch with combination length"
+    );
+    batched_claim
+}
+
+pub fn sumcheck_verifier(
+    round_config: &RoundConfig,
+    proof: &SalsaaProof,
     verifier_sumcheck_context: &mut VerifierSumcheckContext,
-    transcript: &[SumcheckElement],
+    evaluation_points_outer: &[RingElement],
+    vdf_challenge: Option<&RingElement>,
+    vdf_outputs: Option<(
+        &[RingElement; VDF_MATRIX_HEIGHT],
+        &[RingElement; VDF_MATRIX_HEIGHT],
+    )>,
+    projection_challenges_unstructured: &Option<
+        [BatchedProjectionChallengesSuccinct; NOF_BATCHES],
+    >,
+    vdf_crs_param: Option<&VDFCrs>,
     hash_wrapper: &mut HashWrapper,
-    mut running_claim: QuadraticExtension,
+    claims: &HorizontallyAlignedMatrix<RingElement>,
 ) -> (
-    Vec<QuadraticExtension>,
     Vec<RingElement>,
     QuadraticExtension,
+    Vec<RingElement>,
+    [QuadraticExtension; HALF_DEGREE]
 ) {
-
+    
     // Sample random batching coefficients (same Fiat-Shamir as prover)
-    let num_sumchecks = verifier_context
+    let num_sumchecks = verifier_sumcheck_context
         .combiner_evaluation
         .borrow()
         .sumchecks_count();
@@ -77,14 +169,14 @@ fn sumcheck_verifier(
 
     // Compute expected batched claim over field
     let batched_claim = batch_claims(
-        config,
+        round_config,
         claims,
         &evaluation_points_outer,
         proof.ip_l2_claim.as_ref(),
         proof.ip_linf_claim.as_ref(),
-        compute_ip_vdf_claim(
-            config,
-            vdf_challenge.as_ref(),
+        compute_ip_df_claim(
+            round_config,
+            vdf_challenge,
             vdf_outputs.map(|(y_0, y_t)| (y_0, y_t, vdf_crs_param.unwrap())),
         )
         .as_ref(),
@@ -106,16 +198,18 @@ fn sumcheck_verifier(
         }
         result
     };
+
+    // Verify each sumcheck round: poly(0) + poly(1) == running_claim
+    let mut num_vars = proof.sumcheck_transcript.len();
+
     let mut evaluation_points_field = Vec::new();
     let mut evaluation_points_ring = Vec::new();
 
-    let mut num_vars = transcript.len();
     let mut round_idx = 0;
-
     while num_vars > 0 {
         num_vars -= 1;
 
-        let poly = &transcript[round_idx];
+        let poly = &proof.sumcheck_transcript[round_idx];
 
         hash_wrapper.update_with_quadratic_extension_slice(
             &poly.coefficients
@@ -123,15 +217,15 @@ fn sumcheck_verifier(
 
         assert_eq!(
             poly.at_zero() + poly.at_one(),
-            running_claim,
-            "Sumcheck round {} failed",
+            batched_claim_over_field,
+            "Sumcheck round {}: poly(0) + poly(1) != running claim",
             round_idx
         );
 
         let mut f = QuadraticExtension::zero();
         hash_wrapper.sample_field_element_into(&mut f);
 
-        running_claim = poly.at(&f);
+        batched_claim_over_field = poly.at(&f);
 
         evaluation_points_field.push(f);
 
@@ -149,8 +243,10 @@ fn sumcheck_verifier(
     }
 
     (
-        evaluation_points_field,
+        //evaluation_points_field,
         evaluation_points_ring,
-        running_claim,
+        batched_claim_over_field,
+        combination,
+        qe
     )
 }
