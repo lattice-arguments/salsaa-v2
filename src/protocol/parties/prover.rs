@@ -1,21 +1,34 @@
 use rokoko::{
     common::{
-        arithmetic::{ALL_ONE_COEFFS, ONE, ZERO}, decomposition::{compose_from_decomposed, decompose_chunks_into}, estimator::{RSISParameters, estimate_rsis_security}, hash::HashWrapper, matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated}, norms, projection_matrix::ProjectionMatrix, ring_arithmetic::{Representation, RingElement}, structured_row::{PreprocessedRow, StructuredRow}
+        arithmetic::{ALL_ONE_COEFFS, ONE, ZERO},
+        decomposition::{compose_from_decomposed, decompose_chunks_into},
+        estimator::{RSISParameters, estimate_rsis_security},
+        hash::HashWrapper,
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+        norms,
+        projection_matrix::ProjectionMatrix,
+        ring_arithmetic::{Representation, RingElement},
+        structured_row::{PreprocessedRow, StructuredRow},
     },
     protocol::{
-        commitment::{commit_basic, commit_basic_internal}, config::ConfigBase, crs::CRS, fold::fold, open::evaluation_point_to_structured_row, project::{prepare_i16_witness, project}, project_2::{BatchedProjectionChallenges, batch_projection_n_times, project_coefficients}, sumcheck_utils::common::HighOrderSumcheckData
+        commitment::{commit_basic, commit_basic_internal},
+        config::ConfigBase,
+        crs::CRS,
+        fold::fold,
+        open::evaluation_point_to_structured_row,
+        project::{prepare_i16_witness, project},
+        project_2::{BatchedProjectionChallenges, batch_projection_n_times, project_coefficients},
+        sumcheck_utils::common::HighOrderSumcheckData,
     },
 };
 
 use crate::{
-    common::{
-        config::*,
-    },
+    common::config::*,
     protocol::{
-        config::{paste_by_prefix, RoundConfig, SalsaaProof, SalsaaProofCommon},
-        sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
+        config::{RoundConfig, SalsaaProof, SalsaaProofCommon, paste_by_prefix},
         project::BatchingChallenges,
-        vdf::{compute_ip_df_claim, VDFCrs},
+        sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
+        vdf::{VDFCrs, compute_ip_df_claim},
     },
 };
 
@@ -161,14 +174,15 @@ fn structured_round(
 
         let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
 
-        let sec = estimate_rsis_security(
-            &RSISParameters {
-                m: config.witness_height() as u64,
-                n: RANK as u64,
-                length_bound: norm_unfolded as u64,
-            }
+        let sec = estimate_rsis_security(&RSISParameters {
+            m: config.witness_height() as u64,
+            n: RANK as u64,
+            length_bound: norm_unfolded as u64,
+        });
+        println!(
+            "Estimated security against RSIS attack for structured round: {} bits",
+            sec.unwrap().secpar
         );
-        println!("Estimated security against RSIS attack for structured round: {} bits", sec.unwrap().secpar);
     }
 
     decompose_chunks_into(
@@ -380,7 +394,6 @@ fn unstructured_round(
     );
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, RANK);
 
-
     //  if DEBUG_HARDNESS {
     //     let norm = norms::l2_norm(&decomposed_split_witness.data);
     //     let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
@@ -396,7 +409,6 @@ fn unstructured_round(
     //     );
     //     println!("Estimated security against RSIS attack for the unstructured round: {} bits", sec.unwrap().secpar);
     // }
-
 
     let outer_points_len =
         config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
@@ -687,7 +699,10 @@ fn debug_assertions_intermediate(
         for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
             expected_claim += &(c * r);
         }
-        assert_eq!(claim, expected_claim, "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points");
+        assert_eq!(
+            claim, expected_claim,
+            "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
+        );
     }
     let projection_claim = sumcheck_context
         .type3sumcheck
@@ -768,10 +783,11 @@ fn debug_assertions_common(
             .output
             .borrow()
             .claim();
-            assert_eq!(
-                l2_claim, ip_l2_claim.clone().unwrap(),
-                "L2 claim from the projection sumcheck does not match the expected l2 claim computed from the witness"
-            );
+        assert_eq!(
+            l2_claim,
+            ip_l2_claim.clone().unwrap(),
+            "L2 claim from the projection sumcheck does not match the expected l2 claim computed from the witness"
+        );
     }
     if config.exact_binariness {
         let linf_claim = sumcheck_context
@@ -782,12 +798,16 @@ fn debug_assertions_common(
             .borrow()
             .claim();
         let ct = linf_claim.constant_term_from_incomplete_ntt();
-        assert_eq!(ct, 0, "Linf claim from the projection sumcheck is not zero, which means that the witness is not exactly binary as expected");
+        assert_eq!(
+            ct, 0,
+            "Linf claim from the projection sumcheck is not zero, which means that the witness is not exactly binary as expected"
+        );
 
         assert_eq!(
-            linf_claim, ip_linf_claim.clone().unwrap(),
+            linf_claim,
+            ip_linf_claim.clone().unwrap(),
             "Linf claim from the projection sumcheck does not match the expected linf claim computed from the witness"
-            );
+        );
     }
     if config.vdf {
         let vdf_claim = sumcheck_context

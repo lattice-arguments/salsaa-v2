@@ -8,19 +8,16 @@ use rokoko::{
     },
     protocol::{
         project_2::BatchedProjectionChallenges,
-        sumchecks::{helpers::projection_flatter_1_times_matrix},
+        sumchecks::helpers::projection_flatter_1_times_matrix,
     },
 };
 
 use crate::{
     common::config::*,
     protocol::{
-        sumchecks::{context_prover::ProverSumcheckContext},
-        vdf::VDFCrs,
-        project::BatchingChallenges,
-    }
+        project::BatchingChallenges, sumchecks::context_prover::ProverSumcheckContext, vdf::VDFCrs,
+    },
 };
-
 
 impl ProverSumcheckContext {
     pub fn load_data(

@@ -4,10 +4,10 @@ use crate::{
         config::RoundConfig,
         sumchecks::context_verifier::{
             L2VerifierSumcheckContext, LinfVerifierSumcheckContext, Type1VerifierSumcheckContext,
-            Type31VerifierSumcheckContext, Type3VerifierSumcheckContext,
+            Type3VerifierSumcheckContext, Type31VerifierSumcheckContext,
             VDFVerifierSumcheckContext, VerifierSumcheckContext,
         },
-    }
+    },
 };
 
 use rokoko::{
@@ -57,7 +57,9 @@ fn init_verifier_type_3_1_sumcheck(
         | RoundConfig::Last {
             projection_ratio, ..
         } => *projection_ratio,
-        _ => panic!("type 3.1 verifier sumcheck should only be initialized for rounds with unstructured projection"),
+        _ => panic!(
+            "type 3.1 verifier sumcheck should only be initialized for rounds with unstructured projection"
+        ),
     };
     let total_vars = config.extended_witness_length.ilog2() as usize;
     let single_col_height = config.extended_witness_length / config.main_witness_columns;

@@ -1,12 +1,7 @@
-use crate::{
-    common::config::*,
-    protocol::config::RoundConfig,
-};
-use rokoko::{
-    common::{
-        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
-        ring_arithmetic::{Representation, RingElement},
-    },
+use crate::{common::config::*, protocol::config::RoundConfig};
+use rokoko::common::{
+    matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+    ring_arithmetic::{Representation, RingElement},
 };
 
 pub struct VDFCrs {
@@ -17,7 +12,11 @@ pub struct VDFOutput {
     pub y_t: [RingElement; VDF_MATRIX_HEIGHT],
     pub trace_witness: VerticallyAlignedMatrix<RingElement>,
 }
-pub fn delay_function(y_0: &[RingElement; VDF_MATRIX_HEIGHT], dim: usize, vdf_crs: &VDFCrs) -> VDFOutput {
+pub fn delay_function(
+    y_0: &[RingElement; VDF_MATRIX_HEIGHT],
+    dim: usize,
+    vdf_crs: &VDFCrs,
+) -> VDFOutput {
     // VDF with G = I_{HEIGHT} ⊗ g^T (gadget) and A (HEIGHT × WIDTH CRS matrix).
     //
     // Per step:

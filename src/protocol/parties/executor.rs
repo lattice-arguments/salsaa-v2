@@ -1,9 +1,11 @@
 use crate::{
-    common:: config::*,
+    common::config::*,
     protocol::{
-        config::{to_kb, CONFIG},
+        config::{CONFIG, to_kb},
         parties::{prover::prover_round, verifier::verifier_round},
-        sumchecks::{builder_prover::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck},
+        sumchecks::{
+            builder_prover::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck,
+        },
         vdf::{delay_function, vdf_init},
     },
 };
@@ -14,11 +16,7 @@ use rokoko::{
         matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{Representation, RingElement},
     },
-    protocol::{
-        commitment::commit_basic,
-        config::SizeableProof,
-        crs::CRS,
-    },
+    protocol::{commitment::commit_basic, config::SizeableProof, crs::CRS},
 };
 
 pub struct VDFOutput {

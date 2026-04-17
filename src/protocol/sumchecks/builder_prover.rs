@@ -1,16 +1,13 @@
 use std::array;
 
 use rokoko::{
-    common::{
-        ring_arithmetic::RingElement,
-        arithmetic::ALL_ONE_COEFFS,
-    },
+    common::{arithmetic::ALL_ONE_COEFFS, ring_arithmetic::RingElement},
     protocol::{
         crs::CRS,
         sumcheck_utils::{
-            combiner::Combiner, common::HighOrderSumcheckData, elephant_cell::ElephantCell,
-            linear::LinearSumcheck, product::ProductSumcheck, diff::DiffSumcheck,
-            ring_to_field_combiner::RingToFieldCombiner
+            combiner::Combiner, common::HighOrderSumcheckData, diff::DiffSumcheck,
+            elephant_cell::ElephantCell, linear::LinearSumcheck, product::ProductSumcheck,
+            ring_to_field_combiner::RingToFieldCombiner,
         },
     },
 };
@@ -21,13 +18,12 @@ use crate::{
         config::RoundConfig,
         sumchecks::context_prover::{
             L2ProverSumcheckContext, LinfSumcheckContext, ProverSumcheckContext,
-            Type1ProverSumcheckContext, Type31ProverSumcheckContext, Type3ProverSumcheckContext,
+            Type1ProverSumcheckContext, Type3ProverSumcheckContext, Type31ProverSumcheckContext,
             VDFProverSumcheckContext,
         },
         sumchecks::helpers::sumcheck_from_prefix,
     },
 };
-
 
 fn init_prover_type_1_sumcheck(
     config: &RoundConfig,
@@ -127,7 +123,15 @@ fn init_prover_type_3_sumcheck(
 
             let total_vars = config.extended_witness_length.ilog2() as usize;
 
-            assert_eq!(c0_len * c1_len * c2_len, config.extended_witness_length / (2_usize.pow(projection_prefix.length as u32)), "c0_len * c1_len * c2_len must be equal to extended_witness_length, got c0_len: {}, c1_len: {}, c2_len: {}, extended_witness_length: {}", c0_len, c1_len, c2_len, config.extended_witness_length);
+            assert_eq!(
+                c0_len * c1_len * c2_len,
+                config.extended_witness_length / (2_usize.pow(projection_prefix.length as u32)),
+                "c0_len * c1_len * c2_len must be equal to extended_witness_length, got c0_len: {}, c1_len: {}, c2_len: {}, extended_witness_length: {}",
+                c0_len,
+                c1_len,
+                c2_len,
+                config.extended_witness_length
+            );
 
             // We have the following variables structure:
             // LEFT

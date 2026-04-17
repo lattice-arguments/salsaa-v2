@@ -1,15 +1,12 @@
-
 use crate::{
     common::config::*,
     protocol::{
         config::{RoundConfig, SalsaaProof},
         project::BatchingChallenges,
-        vdf::VDFCrs,
         sumchecks::context_verifier::VerifierSumcheckContext,
-
-    }
+        vdf::VDFCrs,
+    },
 };
-
 
 use rokoko::{
     common::{
@@ -20,8 +17,7 @@ use rokoko::{
         structured_row::{PreprocessedRow, StructuredRow},
     },
     protocol::{
-        open::evaluation_point_to_structured_row,
-        project_2::BatchedProjectionChallengesSuccinct,
+        open::evaluation_point_to_structured_row, project_2::BatchedProjectionChallengesSuccinct,
         sumchecks::helpers::projection_flatter_1_times_matrix,
     },
 };
