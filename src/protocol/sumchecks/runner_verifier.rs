@@ -1,23 +1,23 @@
+use crate::{
+    common::config::*,
+    protocol::{
+        config::{RoundConfig, SalsaaProof},
+        sumchecks::context_verifier::VerifierSumcheckContext,
+        vdf::{VDFCrs, compute_ip_df_claim},
+    },
+};
 use rokoko::{
     common::{
         arithmetic::{field_to_ring_element_into, precompute_structured_values_fast},
         hash::HashWrapper,
-        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix},
+        matrix::{HorizontallyAlignedMatrix, new_vec_zero_preallocated},
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         sumcheck_element::SumcheckElement,
     },
     protocol::{
-        sumcheck_utils::polynomial::Polynomial,
-        project_2::BatchedProjectionChallengesSuccinct,
+        project_2::BatchedProjectionChallengesSuccinct
     },
 };
-use crate::{
-    common::config::*,
-    protocol::{
-        config::{RoundConfig, SalsaaProof}, sumchecks::context_verifier::VerifierSumcheckContext, vdf::{VDFCrs, compute_ip_df_claim}
-    },
-};
-
 
 /// Computes the batched claim from individual sumcheck claims.
 /// Type1 sumchecks are product sumchecks with claims = <evaluation_outer, column_claims>,
@@ -108,9 +108,7 @@ pub fn sumcheck_verifier(
         &[RingElement; VDF_MATRIX_HEIGHT],
         &[RingElement; VDF_MATRIX_HEIGHT],
     )>,
-    projection_challenges_unstructured: &Option<
-        [BatchedProjectionChallengesSuccinct; NOF_BATCHES],
-    >,
+    projection_challenges_unstructured: &Option<[BatchedProjectionChallengesSuccinct; NOF_BATCHES]>,
     vdf_crs_param: Option<&VDFCrs>,
     hash_wrapper: &mut HashWrapper,
     claims: &HorizontallyAlignedMatrix<RingElement>,
@@ -118,9 +116,8 @@ pub fn sumcheck_verifier(
     Vec<RingElement>,
     QuadraticExtension,
     Vec<RingElement>,
-    [QuadraticExtension; HALF_DEGREE]
+    [QuadraticExtension; HALF_DEGREE],
 ) {
-    
     // Sample random batching coefficients (same Fiat-Shamir as prover)
     let num_sumchecks = verifier_sumcheck_context
         .combiner_evaluation
@@ -211,9 +208,7 @@ pub fn sumcheck_verifier(
 
         let poly = &proof.sumcheck_transcript[round_idx];
 
-        hash_wrapper.update_with_quadratic_extension_slice(
-            &poly.coefficients
-        );
+        hash_wrapper.update_with_quadratic_extension_slice(&poly.coefficients);
 
         assert_eq!(
             poly.at_zero() + poly.at_one(),
@@ -229,9 +224,7 @@ pub fn sumcheck_verifier(
 
         evaluation_points_field.push(f);
 
-        let mut r = RingElement::zero(
-            Representation::IncompleteNTT
-        );
+        let mut r = RingElement::zero(Representation::IncompleteNTT);
 
         field_to_ring_element_into(&mut r, &f);
 
@@ -247,6 +240,6 @@ pub fn sumcheck_verifier(
         evaluation_points_ring,
         batched_claim_over_field,
         combination,
-        qe
+        qe,
     )
 }

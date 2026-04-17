@@ -1,4 +1,4 @@
-use std::{sync::LazyLock};
+use std::sync::LazyLock;
 
 use rokoko::{
     common::{
@@ -7,15 +7,12 @@ use rokoko::{
     },
     protocol::{
         commitment::{BasicCommitment, Prefix},
-        sumcheck_utils::polynomial::Polynomial,
         config::{ConfigBase, SizeableProof},
+        sumcheck_utils::polynomial::Polynomial,
     },
 };
 
-use crate::{
-    common::config::*,
-    protocol::config_generator::build_round_config,
-};
+use crate::{common::config::*, protocol::config_generator::build_round_config};
 
 // 2^26 = 2^7 (DEGREE) * 2^19
 // 2^19 = 2^5 * 2^14

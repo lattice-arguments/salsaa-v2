@@ -2,7 +2,7 @@ use rokoko::{
     common::{
         arithmetic::field_to_ring_element_into,
         hash::HashWrapper,
-        matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         structured_row::PreprocessedRow,
         sumcheck_element::SumcheckElement,
@@ -15,12 +15,8 @@ use rokoko::{
 
 use crate::{
     common::config::DEBUG,
-    protocol::{
-        config::RoundConfig,
-        sumchecks::context_prover::ProverSumcheckContext,
-    }
+    protocol::{config::RoundConfig, sumchecks::context_prover::ProverSumcheckContext},
 };
-
 
 pub fn sumcheck(
     sumcheck_context: &mut ProverSumcheckContext,
@@ -64,7 +60,6 @@ pub fn sumcheck(
 
         polys.push(poly_over_field);
     }
-
 
     // Sumcheck rounds produce LS-first challenges; the rest of this prover flow
     // still expects the legacy outer-first (MS-style) view for slicing/splitting.
@@ -116,7 +111,7 @@ pub fn sumcheck(
             cop[0] += &temp;
         }
     }
-    
+
     // Conjugate eval point in place and repeat the logic to get the claims for the conjugated witness, which will be used in the l2 and linf sumchecks
     for r in preprocessed.preprocessed_row.iter_mut() {
         r.conjugate_in_place();

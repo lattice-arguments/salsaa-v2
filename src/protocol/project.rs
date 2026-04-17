@@ -1,16 +1,9 @@
-use rokoko::{
-    common::{
-        hash::HashWrapper,
-        matrix::new_vec_zero_preallocated,
-        ring_arithmetic::RingElement,
-        structured_row::StructuredRow,
-    },
+use rokoko::common::{
+    hash::HashWrapper, matrix::new_vec_zero_preallocated, ring_arithmetic::RingElement,
+    structured_row::StructuredRow,
 };
 
-use crate::{
-    common::config::PROJECTION_HEIGHT,
-    protocol::config::RoundConfig
-};
+use crate::{common::config::PROJECTION_HEIGHT, protocol::config::RoundConfig};
 
 pub struct BatchingChallenges {
     // in succinct form

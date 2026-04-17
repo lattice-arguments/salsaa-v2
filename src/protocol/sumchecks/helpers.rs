@@ -2,9 +2,7 @@ use rokoko::{
     common::ring_arithmetic::RingElement,
     protocol::{
         commitment::Prefix,
-        sumcheck_utils::{
-            elephant_cell::ElephantCell, selector_eq::SelectorEq,
-        },
+        sumcheck_utils::{elephant_cell::ElephantCell, selector_eq::SelectorEq},
     },
 };
 

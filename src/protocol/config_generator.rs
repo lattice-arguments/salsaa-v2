@@ -1,7 +1,7 @@
 use rokoko::protocol::commitment::Prefix;
 
 use crate::{
-    common::config::*, 
+    common::config::*,
     protocol::config::{RoundConfig, RoundConfigCommon},
 };
 
@@ -26,7 +26,10 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
     let next_main_witness_columns = 8usize;
     let next_projection_ratio = 8usize;
     let can_recurse = next_single_col_height >= PROJECTION_HEIGHT * next_projection_ratio;
-    println!("Building round config: extended_witness_length={}, single_col_height={}, next_single_col_height={}, can_recurse={}", extended_witness_length, single_col_height, next_single_col_height, can_recurse);
+    println!(
+        "Building round config: extended_witness_length={}, single_col_height={}, next_single_col_height={}, can_recurse={}",
+        extended_witness_length, single_col_height, next_single_col_height, can_recurse
+    );
 
     let inner_evaluation_claims = if is_first_round { 0 } else { 2 };
 
@@ -82,7 +85,9 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
 
         println!(
             "Building unstructured round config: extended_witness_length={}, single_col_height={}, next_height={}",
-            unstructured_extended_witness_length, unstructured_single_col_height, next_unstructured_height
+            unstructured_extended_witness_length,
+            unstructured_single_col_height,
+            next_unstructured_height
         );
 
         let next_unstructured_config = if next_unstructured_height >= PROJECTION_HEIGHT {
