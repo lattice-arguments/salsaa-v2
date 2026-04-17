@@ -1,24 +1,20 @@
 use crate::{
     common::config::*,
     protocol::{
-        config::{RoundConfig, SalsaaProof},
-        vdf::{compute_ip_df_claim, VDFCrs},
-        sumchecks::context_verifier::VerifierSumcheckContext,
-        project::BatchingChallenges,
+        config::{RoundConfig, SalsaaProof}, project::BatchingChallenges, sumchecks::{context_verifier::VerifierSumcheckContext, runner_verifier::sumcheck_verifier}, vdf::VDFCrs
     },
 };
 
 use rokoko::{
     common::{
         norms::l2_norm_coeffs,
-        arithmetic::{field_to_ring_element_into, precompute_structured_values_fast, ONE},
+        arithmetic::{precompute_structured_values_fast, ONE},
         decomposition::compose_from_decomposed,
         hash::HashWrapper,
         matrix::{new_vec_zero_preallocated, HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         projection_matrix::ProjectionMatrix,
-        ring_arithmetic::{QuadraticExtension, Representation, RingElement},
+        ring_arithmetic::{Representation, RingElement},
         structured_row::{PreprocessedRow, StructuredRow},
-        sumcheck_element::SumcheckElement,
     },
     hexl::bindings::{add_mod, eltwise_mult_mod, multiply_mod},
     protocol::{
@@ -30,84 +26,6 @@ use rokoko::{
 };
 use std::array;
 
-/// Computes the batched claim from individual sumcheck claims.
-/// Type1 sumchecks are product sumchecks with claims = <evaluation_outer, column_claims>,
-/// Type3 is a diff sumcheck with claim = 0.
-fn batch_claims(
-    config: &RoundConfig,
-    claims: &HorizontallyAlignedMatrix<RingElement>,
-    evaluation_points_outer: &[RingElement],
-    ip_l2_claim: Option<&RingElement>,
-    ip_linf_claim: Option<&RingElement>,
-    ip_df_claim: Option<&RingElement>,
-    type31_claims: &[RingElement],
-    combination: &[RingElement],
-) -> RingElement {
-    let mut batched_claim = RingElement::zero(Representation::IncompleteNTT);
-    let mut idx = 0;
-
-    // Type1 sumchecks: claim = <evaluation_outer, column_claims[i]>
-    for i in 0..config.inner_evaluation_claims {
-        let mut type1_claim = RingElement::zero(Representation::IncompleteNTT);
-        for (c, r) in claims.row(i).iter().zip(evaluation_points_outer.iter()) {
-            type1_claim += &(c * r);
-        }
-        let mut weighted = type1_claim;
-        weighted *= &combination[idx];
-        batched_claim += &weighted;
-        idx += 1;
-    }
-
-    if let RoundConfig::Intermediate { .. } = config {
-        // zero claim, nothing to add
-        idx += 1;
-    }
-
-    // L2: product sumcheck over conjugated witness and selected witness.
-    if config.l2 {
-        let mut weighted = ip_l2_claim
-            .expect("Missing l2 claim in proof while l2 constraint is enabled")
-            .clone();
-        weighted *= &combination[idx];
-        batched_claim += &weighted;
-        idx += 1;
-    }
-
-    // Linf: exact-binariness sumcheck claim.
-    if config.exact_binariness {
-        let mut weighted = ip_linf_claim
-            .expect("Missing linf claim in proof while exact_binariness is enabled")
-            .clone();
-        weighted *= &combination[idx];
-        batched_claim += &weighted;
-        idx += 1;
-    }
-
-    // VDF: product sumcheck claim = -y_0 + c^{2K} · y_t
-    if config.vdf {
-        let mut weighted = ip_df_claim
-            .expect("Missing vdf claim in proof while vdf is enabled")
-            .clone();
-        weighted *= &combination[idx];
-        batched_claim += &weighted;
-        idx += 1;
-    }
-
-    // Type31: projection sumcheck claims for IntermediateUnstructured
-    for type31_claim in type31_claims {
-        let mut weighted = type31_claim.clone();
-        weighted *= &combination[idx];
-        batched_claim += &weighted;
-        idx += 1;
-    }
-
-    assert_eq!(
-        idx,
-        combination.len(),
-        "batch_claims: index mismatch with combination length"
-    );
-    batched_claim
-}
 
 pub fn verifier_round(
     config: &RoundConfig,
@@ -279,119 +197,19 @@ pub fn verifier_round(
     let mut evaluation_points_outer = new_vec_zero_preallocated(config.main_witness_columns);
     hash_wrapper.sample_ring_element_vec_into(&mut evaluation_points_outer);
 
-    // Sample random batching coefficients (same Fiat-Shamir as prover)
-    let num_sumchecks = verifier_context
-        .combiner_evaluation
-        .borrow()
-        .sumchecks_count();
-    let mut combination = new_vec_zero_preallocated(num_sumchecks);
-    hash_wrapper.sample_ring_element_vec_into(&mut combination);
-
-    let mut combination_to_field = RingElement::zero(Representation::IncompleteNTT);
-    hash_wrapper.sample_ring_element_into(&mut combination_to_field);
-    combination_to_field.from_incomplete_ntt_to_homogenized_field_extensions();
-    let qe = combination_to_field.split_into_quadratic_extensions();
-
-    // Compute type31 claims for rounds with unstructured projection
-    let type31_claims: Vec<RingElement> = match proof {
-        SalsaaProof::IntermediateUnstructured {
-            projection_image_batched,
-            ..
-        }
-        | SalsaaProof::Last {
-            projection_image_batched,
-            ..
-        } => {
-            let challenges = projection_challenges_unstructured
-                .as_ref()
-                .expect("Missing projection challenges for type31 claims");
-            let mut claims_vec = Vec::with_capacity(NOF_BATCHES);
-            for batch_idx in 0..NOF_BATCHES {
-                let c_2_values =
-                    precompute_structured_values_fast(&challenges[batch_idx].c_2_layers);
-                let mut claim = RingElement::zero(Representation::IncompleteNTT);
-                let mut temp = RingElement::zero(Representation::IncompleteNTT);
-                for k in 0..projection_image_batched.width {
-                    temp *= (
-                        &projection_image_batched[(batch_idx, k)],
-                        &RingElement::constant(c_2_values[k], Representation::IncompleteNTT),
-                    );
-                    claim += &temp;
-                }
-                claims_vec.push(claim);
-            }
-            claims_vec
-        }
-        _ => vec![],
-    };
-
-    // Compute expected batched claim over field
-    let batched_claim = batch_claims(
-        config,
-        claims,
-        &evaluation_points_outer,
-        proof.ip_l2_claim.as_ref(),
-        proof.ip_linf_claim.as_ref(),
-        compute_ip_df_claim(
+    let (evaluation_points_ring, batched_claim_over_field, combination, qe) =
+        sumcheck_verifier(
             config,
+            proof,
+            verifier_context,
+            &evaluation_points_outer,
             vdf_challenge.as_ref(),
-            vdf_outputs.map(|(y_0, y_t)| (y_0, y_t, vdf_crs_param.unwrap())),
-        )
-        .as_ref(),
-        &type31_claims,
-        &combination,
-    );
-
-    let mut batched_claim_over_field = {
-        let batched_claim_field = {
-            let mut temp = batched_claim.clone();
-            temp.from_incomplete_ntt_to_homogenized_field_extensions();
-            temp
-        };
-        let mut temp = batched_claim_field.split_into_quadratic_extensions();
-        let mut result = QuadraticExtension::zero();
-        for i in 0..HALF_DEGREE {
-            temp[i] *= &qe[i];
-            result += &temp[i];
-        }
-        result
-    };
-
-    // Verify each sumcheck round: poly(0) + poly(1) == running_claim
-    let mut num_vars = proof.sumcheck_transcript.len();
-    let mut evaluation_points_field: Vec<QuadraticExtension> = Vec::new();
-    let mut evaluation_points_ring: Vec<RingElement> = Vec::new();
-
-    let mut round_idx = 0;
-    while num_vars > 0 {
-        num_vars -= 1;
-        let poly_over_field = &proof.sumcheck_transcript[round_idx];
-
-        hash_wrapper.update_with_quadratic_extension_slice(&poly_over_field.coefficients);
-
-        assert_eq!(
-            poly_over_field.at_zero() + poly_over_field.at_one(),
-            batched_claim_over_field,
-            "Sumcheck round {}: poly(0) + poly(1) != running claim",
-            round_idx,
+            vdf_outputs,
+            &projection_challenges_unstructured,
+            vdf_crs_param,
+            hash_wrapper,
+            claims
         );
-
-        let mut f = QuadraticExtension::zero();
-        hash_wrapper.sample_field_element_into(&mut f);
-
-        batched_claim_over_field = poly_over_field.at(&f);
-
-        evaluation_points_field.push(f);
-
-        let mut r = RingElement::zero(Representation::IncompleteNTT);
-        field_to_ring_element_into(&mut r, &f);
-        r.from_homogenized_field_extensions_to_incomplete_ntt();
-        evaluation_points_ring.push(r);
-
-        round_idx += 1;
-    }
-
-    // verify evaluation claims (TODO: change to recompute them from the proof data)
 
     // Replay Fiat-Shamir: sample folding challenges (same as prover does post-sumcheck)
     let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
