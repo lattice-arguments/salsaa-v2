@@ -5,7 +5,7 @@ pub static MOD_Q: u64 = 1125899906839937;
 pub static NOF_BATCHES: usize = 2;
 // these should be re-exports from rokoko
 
-pub const DEBUG: bool = false;
+pub const DEBUG: bool = true;
 
 pub const DEBUG_HARDNESS: bool = false;
 

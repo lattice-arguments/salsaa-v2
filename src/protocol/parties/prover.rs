@@ -114,14 +114,34 @@ fn structured_round(
     );
 
     load_combination_challenge(sumcheck_context, hash_wrapper);
-    debug_assertions_intermediate(
-        sumcheck_context,
-        config,
-        claims,
-        &evaluation_points_outer,
-        vdf_challenge.as_ref(),
-        vdf_params,
-    );
+
+    if DEBUG {
+        let ip_df_claim = compute_ip_df_claim(config, vdf_challenge.as_ref(), vdf_params);
+        if !sumcheck_context.type1sumcheck.is_empty() {
+            let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
+            let mut expected_claim = ZERO.clone();
+            for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
+                expected_claim += &(c * r);
+            }
+            assert_eq!(
+                claim, expected_claim,
+                "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
+            );
+        }
+        let projection_claim = sumcheck_context
+            .type3sumcheck
+            .as_ref()
+            .unwrap()
+            .output
+            .borrow()
+            .claim();
+        assert_eq!(
+            projection_claim,
+            ZERO.clone(),
+            "Projection claim does not match"
+        );
+        debug_assertions_common(sumcheck_context, config, ip_df_claim.as_ref(), ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+    }
 
     let (claims_out, claim_over_projection, polys, evaluation_points) = sumcheck(
         sumcheck_context,
@@ -212,7 +232,7 @@ fn structured_round(
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, RANK);
 
     if DEBUG {
-        debug_check_decomposed_intermediate(
+        debug_check_decomposed(
             crs,
             &split_witness,
             &decomposed_split_commitment,
@@ -352,14 +372,45 @@ fn unstructured_round(
     );
 
     load_combination_challenge(sumcheck_context, hash_wrapper);
-    debug_assertions_unstructured(
-        sumcheck_context,
-        config,
-        claims,
-        &evaluation_points_outer,
-        &batched_image,
-        &unstructured_batching_challenges,
-    );
+
+    if DEBUG {
+        if !sumcheck_context.type1sumcheck.is_empty() {
+            let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
+            let mut expected_claim = ZERO.clone();
+            for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
+                expected_claim += &(c * r);
+            }
+            assert_eq!(
+                claim, expected_claim,
+                "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
+            );
+        }
+        for (batch_idx, type31) in sumcheck_context
+            .type31sumchecks
+            .as_ref()
+            .unwrap()
+            .iter()
+            .enumerate()
+        {
+            let projection_claim = type31.output.borrow().claim();
+            let batch_image = &batched_image.row(batch_idx);
+            let challenges = &unstructured_batching_challenges[batch_idx].c_2_values;
+            let mut expected_projection_claim = RingElement::zero(Representation::IncompleteNTT);
+            let mut temp = RingElement::zero(Representation::IncompleteNTT);
+            for (c, r) in batch_image.iter().zip(challenges.iter()) {
+                temp *= (c, &RingElement::constant(*r, Representation::IncompleteNTT));
+                expected_projection_claim += &temp;
+            }
+            assert_eq!(
+                projection_claim, expected_projection_claim,
+                "Projection claim from the sumcheck does not match the expected projection claim"
+            );
+        }
+        println!(
+            "Unstructured projection claims from the sumcheck match the expected projection claims"
+        );
+        debug_assertions_common(sumcheck_context, config, None, ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+    }
 
     let (claims_out, _, polys, evaluation_points) =
         sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
@@ -544,16 +595,23 @@ fn last_round(
     );
 
     load_combination_challenge(sumcheck_context, hash_wrapper);
-    debug_assertions_unstructured(
-        sumcheck_context,
-        config,
-        claims,
-        &evaluation_points_outer,
-        &batched_image,
-        &unstructured_batching_challenges,
-    );
 
-    let (claims_out, _, polys, evaluation_points) =
+    if DEBUG {
+        if !sumcheck_context.type1sumcheck.is_empty() {
+            let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
+            let mut expected_claim = ZERO.clone();
+            for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
+                expected_claim += &(c * r);
+            }
+            assert_eq!(
+                claim, expected_claim,
+                "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
+            );
+        }
+        debug_assertions_common(sumcheck_context, config, None, ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+    }
+
+    let (claims_out, _, polys, _) =
         sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
 
     let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
@@ -676,104 +734,12 @@ fn load_combination_challenge(
         .load_challenges_from(qe);
 }
 
-/// Debug assertions shared by Intermediate rounds
-fn debug_assertions_intermediate(
-    sumcheck_context: &ProverSumcheckContext,
-    config: &RoundConfig,
-    claims: &HorizontallyAlignedMatrix<RingElement>,
-    evaluation_points_outer: &[RingElement],
-    vdf_challenge: Option<&RingElement>,
-    vdf_params: Option<(
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &VDFCrs,
-    )>,
-) {
-    if !DEBUG {
-        return;
-    }
-    let ip_df_claim = compute_ip_df_claim(config, vdf_challenge, vdf_params);
-    if !sumcheck_context.type1sumcheck.is_empty() {
-        let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
-        let mut expected_claim = ZERO.clone();
-        for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
-            expected_claim += &(c * r);
-        }
-        assert_eq!(
-            claim, expected_claim,
-            "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
-        );
-    }
-    let projection_claim = sumcheck_context
-        .type3sumcheck
-        .as_ref()
-        .unwrap()
-        .output
-        .borrow()
-        .claim();
-    assert_eq!(
-        projection_claim,
-        ZERO.clone(),
-        "Projection claim does not match"
-    );
-}
-
-/// Debug assertions shared by IntermediateUnstructured and Last rounds
-fn debug_assertions_unstructured(
-    sumcheck_context: &ProverSumcheckContext,
-    config: &RoundConfig,
-    claims: &HorizontallyAlignedMatrix<RingElement>,
-    evaluation_points_outer: &[RingElement],
-    batched_image: &HorizontallyAlignedMatrix<RingElement>,
-    unstructured_batching_challenges: &[BatchedProjectionChallenges],
-) {
-    if !DEBUG {
-        return;
-    }
-    if !sumcheck_context.type1sumcheck.is_empty() {
-        let claim = sumcheck_context.type1sumcheck[0].output.borrow().claim();
-        let mut expected_claim = ZERO.clone();
-        for (c, r) in claims.row(0).iter().zip(evaluation_points_outer.iter()) {
-            expected_claim += &(c * r);
-        }
-        assert_eq!(
-            claim, expected_claim,
-            "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
-        );
-    }
-    for (batch_idx, type31) in sumcheck_context
-        .type31sumchecks
-        .as_ref()
-        .unwrap()
-        .iter()
-        .enumerate()
-    {
-        let projection_claim = type31.output.borrow().claim();
-        let batch_image = &batched_image.row(batch_idx);
-        let challenges = &unstructured_batching_challenges[batch_idx].c_2_values;
-        let mut expected_projection_claim = RingElement::zero(Representation::IncompleteNTT);
-        let mut temp = RingElement::zero(Representation::IncompleteNTT);
-        for (c, r) in batch_image.iter().zip(challenges.iter()) {
-            temp *= (c, &RingElement::constant(*r, Representation::IncompleteNTT));
-            expected_projection_claim += &temp;
-        }
-        assert_eq!(
-            projection_claim, expected_projection_claim,
-            "Projection claim from the sumcheck does not match the expected projection claim"
-        );
-    }
-    println!(
-        "Unstructured projection claims from the sumcheck match the expected projection claims"
-    );
-    debug_assertions_common(sumcheck_context, config, None, None, None);
-}
-
 fn debug_assertions_common(
     sumcheck_context: &ProverSumcheckContext,
     config: &RoundConfig,
-    ip_df_claim: Option<RingElement>,
-    ip_l2_claim: Option<RingElement>,
-    ip_linf_claim: Option<RingElement>,
+    ip_df_claim: Option<&RingElement>,
+    ip_l2_claim: Option<&RingElement>,
+    ip_linf_claim: Option<&RingElement>,
 ) {
     if config.l2 {
         let l2_claim = sumcheck_context
@@ -783,9 +749,11 @@ fn debug_assertions_common(
             .output
             .borrow()
             .claim();
+
+        let ip_l2_claim = ip_l2_claim.expect("exepcted ip_l2_claim in debug function, got None");
         assert_eq!(
             l2_claim,
-            ip_l2_claim.clone().unwrap(),
+            *ip_l2_claim,
             "L2 claim from the projection sumcheck does not match the expected l2 claim computed from the witness"
         );
     }
@@ -803,9 +771,10 @@ fn debug_assertions_common(
             "Linf claim from the projection sumcheck is not zero, which means that the witness is not exactly binary as expected"
         );
 
+        let ip_linf_claim = ip_linf_claim.expect("exepcted ip_linf_claim in debug function, got None");
         assert_eq!(
             linf_claim,
-            ip_linf_claim.clone().unwrap(),
+            *ip_linf_claim,
             "Linf claim from the projection sumcheck does not match the expected linf claim computed from the witness"
         );
     }
@@ -819,13 +788,13 @@ fn debug_assertions_common(
             .claim();
         assert_eq!(
             vdf_claim,
-            ip_df_claim.clone().unwrap(),
+            *ip_df_claim.unwrap(),
             "VDF claim from the sumcheck does not match the expected VDF claim"
         );
     }
 }
 
-fn debug_check_decomposed_intermediate(
+fn debug_check_decomposed(
     crs: &CRS,
     split_witness: &VerticallyAlignedMatrix<RingElement>,
     decomposed_split_commitment: &HorizontallyAlignedMatrix<RingElement>,
