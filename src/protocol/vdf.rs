@@ -47,8 +47,8 @@ pub fn delay_function(
         std::array::from_fn(|_| RingElement::zero(Representation::IncompleteNTT));
     let vdf_start = std::time::Instant::now();
     for step in 0..total_steps {
-        let col = step / steps_per_col;
-        let row_in_col = step % steps_per_col;
+        let col = step >> steps_per_col;
+        let row_in_col = step & ( steps_per_col - 1); // equivalent to % if divisor is power of 2
         let base_row = row_in_col * VDF_MATRIX_WIDTH;
 
         // w_step = G^{-1}(-y_step): decompose each component into VDF_BITS binary planes
