@@ -14,6 +14,7 @@ incomplete-rexl = ["rokoko/incomplete-rexl"]
 unsafe-sumcheck = ["rokoko/unsafe-sumcheck"]
 debug-hardness = ["rokoko/debug-hardness"]
 debug-decomp = ["rokoko/debug-decomp"]
+parallel = []
 
 p-30 = ["rokoko/p-30"]
 p-26 = ["rokoko/p-26"]
