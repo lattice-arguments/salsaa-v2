@@ -140,7 +140,13 @@ fn structured_round(
             ZERO.clone(),
             "Projection claim does not match"
         );
-        debug_assertions_common(sumcheck_context, config, ip_df_claim.as_ref(), ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+        debug_assertions_common(
+            sumcheck_context,
+            config,
+            ip_df_claim.as_ref(),
+            ip_l2_claim.as_ref(),
+            ip_linf_claim.as_ref(),
+        );
     }
 
     let (claims_out, claim_over_projection, polys, evaluation_points) = sumcheck(
@@ -195,11 +201,12 @@ fn structured_round(
 
         let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
 
-        let sec: Result<rokoko::common::estimator::EstimatorResult, std::io::Error> = estimate_rsis_security(&RSISParameters {
-            m: config.witness_height() as u64,
-            n: rank() as u64,
-            length_bound: norm_unfolded as u64,
-        });
+        let sec: Result<rokoko::common::estimator::EstimatorResult, std::io::Error> =
+            estimate_rsis_security(&RSISParameters {
+                m: config.witness_height() as u64,
+                n: rank() as u64,
+                length_bound: norm_unfolded as u64,
+            });
 
         let sec_par = sec.unwrap().secpar;
 
@@ -210,7 +217,7 @@ fn structured_round(
             EXPECTED_SEC_PARAM,
             rank()
         );
-        
+
         println!(
             "Estimated security against RSIS attack for structured round: {} bits",
             sec_par
@@ -421,7 +428,13 @@ fn unstructured_round(
         println!(
             "Unstructured projection claims from the sumcheck match the expected projection claims"
         );
-        debug_assertions_common(sumcheck_context, config, None, ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+        debug_assertions_common(
+            sumcheck_context,
+            config,
+            None,
+            ip_l2_claim.as_ref(),
+            ip_linf_claim.as_ref(),
+        );
     }
 
     let (claims_out, _, polys, evaluation_points) =
@@ -457,20 +470,18 @@ fn unstructured_round(
     );
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, rank());
 
-     if DEBUG_HARDNESS {
+    if DEBUG_HARDNESS {
         let norm = norms::l2_norm(&decomposed_split_witness.data);
         let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
 
         let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
 
-        let sec = estimate_rsis_security(
-            &RSISParameters {
-                m: config.witness_height() as u64,
-                n: RANK as u64,
-                length_bound: norm_unfolded as u64,
-            }
-        );
-         let sec_par = sec.unwrap().secpar;
+        let sec = estimate_rsis_security(&RSISParameters {
+            m: config.witness_height() as u64,
+            n: RANK as u64,
+            length_bound: norm_unfolded as u64,
+        });
+        let sec_par = sec.unwrap().secpar;
 
         assert!(
             sec_par >= EXPECTED_SEC_PARAM as f64,
@@ -479,7 +490,7 @@ fn unstructured_round(
             EXPECTED_SEC_PARAM,
             rank()
         );
-        
+
         println!(
             "Estimated security against RSIS attack for structured round: {} bits",
             sec_par
@@ -633,11 +644,16 @@ fn last_round(
                 "Claim from the sumcheck does not match the expected claim computed from the committed witness and the evaluation points"
             );
         }
-        debug_assertions_common(sumcheck_context, config, None, ip_l2_claim.as_ref(), ip_linf_claim.as_ref());
+        debug_assertions_common(
+            sumcheck_context,
+            config,
+            None,
+            ip_l2_claim.as_ref(),
+            ip_linf_claim.as_ref(),
+        );
     }
 
-    let (claims_out, _, polys, _) =
-        sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
+    let (claims_out, _, polys, _) = sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
 
     let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
@@ -777,8 +793,7 @@ fn debug_assertions_common(
 
         let ip_l2_claim = ip_l2_claim.expect("exepcted ip_l2_claim in debug function, got None");
         assert_eq!(
-            l2_claim,
-            *ip_l2_claim,
+            l2_claim, *ip_l2_claim,
             "L2 claim from the projection sumcheck does not match the expected l2 claim computed from the witness"
         );
     }
@@ -796,10 +811,10 @@ fn debug_assertions_common(
             "Linf claim from the projection sumcheck is not zero, which means that the witness is not exactly binary as expected"
         );
 
-        let ip_linf_claim = ip_linf_claim.expect("exepcted ip_linf_claim in debug function, got None");
+        let ip_linf_claim =
+            ip_linf_claim.expect("exepcted ip_linf_claim in debug function, got None");
         assert_eq!(
-            linf_claim,
-            *ip_linf_claim,
+            linf_claim, *ip_linf_claim,
             "Linf claim from the projection sumcheck does not match the expected linf claim computed from the witness"
         );
     }
