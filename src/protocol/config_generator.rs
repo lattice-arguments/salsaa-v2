@@ -18,7 +18,13 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
     };
 
     // only for structured case
-    let projection_ratio = if is_first_round { 2 } else { 8 };
+    let projection_ratio = if is_first_round { 
+        match mode() {
+            Mode::SNARK => 2, // we start from 2 witnesses cols
+            Mode::VDF => 2, // we start from 2 witnesses cols
+            Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
+        }
+     } else { 8 };
 
     let single_col_height = extended_witness_length / 2 / main_witness_columns;
     // After fold+split+decompose, next round's column height = single_col_height / 2
@@ -31,13 +37,15 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
         extended_witness_length, single_col_height, next_single_col_height, can_recurse
     );
 
-    let inner_evaluation_claims = if is_first_round { 0 } else { 2 };
+    let inner_evaluation_claims = if is_first_round { 
+        0
+     } else { 2 };
 
     let common = RoundConfigCommon {
         extended_witness_length,
-        exact_binariness: is_first_round,
-        l2: !is_first_round,
-        vdf: is_first_round,
+        exact_binariness: is_first_round && mode() == Mode::VDF, // only the first round of the VDF config enforces exact binariness
+        l2: !is_first_round || mode() != Mode::VDF, 
+        vdf: is_first_round && mode() == Mode::VDF,
         inner_evaluation_claims,
         main_witness_columns,
         main_witness_prefix: Prefix {

@@ -12,11 +12,9 @@ use crate::{
 
 use rokoko::{
     common::{
-        hash::HashWrapper,
-        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
-        ring_arithmetic::{Representation, RingElement},
+        arithmetic::ZERO, decomposition::decompose, hash::HashWrapper, matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix}, ring_arithmetic::{Representation, RingElement}, sampling::sample_random_short_vector
     },
-    protocol::{commitment::commit_basic, config::SizeableProof, crs::CRS},
+    protocol::{commitment::commit_basic, config::SizeableProof, crs::CRS, open::evaluation_point_to_structured_row},
 };
 
 pub struct VDFOutput {
@@ -24,29 +22,62 @@ pub struct VDFOutput {
     y_t: [RingElement; VDF_MATRIX_HEIGHT],
     trace_witness: VerticallyAlignedMatrix<RingElement>,
 }
-fn sample_random_binary_vector(len: usize) -> Vec<RingElement> {
-    (0..len)
-        .map(|_| RingElement::random_bounded_unsigned(Representation::IncompleteNTT, 2))
-        .collect()
+pub fn witness_sampler(
+    width: usize,
+    height: usize,
+) -> VerticallyAlignedMatrix<RingElement> {
+    VerticallyAlignedMatrix {
+        height: height,
+        width: width,
+        data: sample_random_short_vector(
+            height * width,
+            2u64.pow(10 as u32 - 1), // balanced representation
+            Representation::IncompleteNTT,
+        ),
+        used_cols: width,
+    }
 }
+
+// pub fn decompose_witness(
+//     witness: &VerticallyAlignedMatrix<RingElement>,
+// ) -> VerticallyAlignedMatrix<RingElement> {
+//     let decomposed_data = decompose(
+//         &witness.data,
+//         4,
+//         2,
+//     );
+//     VerticallyAlignedMatrix {
+//         height: witness.height * 2,
+//         width: witness.width,
+//         data: decomposed_data,
+//         used_cols: witness.width,
+//     }
+// }
+
 
 pub fn execute() {
     println!("===== CONFIG =====");
     println!("Mode: {:?}", mode());
     let active_rank = rank();
-    // if mode() == Mode::VDF {
-    //     // println("For VDF we have a witness of
-    //     let witness_height = witness_dim() * WITNESS_WIDTH;
-    //     println!("VDF witness height: {witness_height}");
-    //     println!("VDF steps: {}", witness_height / (VDF_MATRIX_HEIGHT * 64));
-    // }
+    let active_witness_dim = witness_dim();
 
     let (witness, vdf_params) = match mode() {
         Mode::SNARK => {
-            panic!("SNARK mode is not implemented yet");
+            let witness_height = active_witness_dim / WITNESS_WIDTH;
+            
+            println!("Witness height: {witness_height}");
+            println!("Witness width: {}", WITNESS_WIDTH);
+            println!("norm_inf: 2^10");
+            println!("Using rank={active_rank}");
+            println!("=================");
+
+            let witness_sampled = witness_sampler(WITNESS_WIDTH, witness_height);
+
+            // let decomposed_witness = decompose_witness(&witness_sampled);
+
+            (witness_sampled, None)
         }
         Mode::VDF => {
-            let active_witness_dim = witness_dim();
 
             let witness_height = active_witness_dim / WITNESS_WIDTH;
             println!("Witness height: {witness_height}");

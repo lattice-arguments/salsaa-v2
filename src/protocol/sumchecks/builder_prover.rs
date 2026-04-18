@@ -366,11 +366,17 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         .collect::<Vec<_>>();
 
     let type3sumcheck = match config {
-        RoundConfig::Intermediate { .. } => Some(init_prover_type_3_sumcheck(
-            config,
-            main_witness_sumcheck.clone(),
-            projection_sumcheck.clone().unwrap(),
-        )),
+        RoundConfig::Intermediate { .. } => {
+            if !config.exact_binariness && !config.l2 {
+                None   
+            } else {
+                Some(init_prover_type_3_sumcheck(
+                    config,
+                    main_witness_sumcheck.clone(),
+                    projection_sumcheck.clone().unwrap(),
+                ))
+            }
+        },
         _ => None,
     };
 

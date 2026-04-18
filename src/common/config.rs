@@ -20,7 +20,7 @@ pub enum Mode {
 }
 
 pub const MODE: Mode = Mode::VDF;
-// const WITNESS_DIM: usize = 2usize.pow(14);
+// const WITNESS_DIM: usize = 2usize.pow(15);
 pub const WITNESS_DIM: usize = 2usize.pow(20); // most can fit on 64 GB
 pub const WITNESS_WIDTH: usize = 2usize;
 pub const RANK: usize = 8;
@@ -71,8 +71,12 @@ pub fn mode() -> Mode {
 }
 
 pub fn witness_height() -> usize {
-    // TODO divide by 2 if SNARK/folding scheme since we docomp
-    witness_dim() / WITNESS_WIDTH
+    // if mode() == Mode::VDF {
+        witness_dim() / WITNESS_WIDTH
+    // } else {
+        // 2 * witness_dim() / WITNESS_WIDTH
+    // }
+    
 }
 
 pub const VDF_MATRIX_HEIGHT: usize = 4;
