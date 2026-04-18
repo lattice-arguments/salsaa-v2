@@ -71,12 +71,7 @@ pub fn mode() -> Mode {
 }
 
 pub fn witness_height() -> usize {
-    // if mode() == Mode::VDF {
-        witness_dim() / WITNESS_WIDTH
-    // } else {
-        // 2 * witness_dim() / WITNESS_WIDTH
-    // }
-    
+    witness_dim() / WITNESS_WIDTH
 }
 
 pub const VDF_MATRIX_HEIGHT: usize = 4;
