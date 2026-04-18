@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rayon = "1.12.0"
 rokoko = { git = "https://github.com/lattice-arguments/rokoko.git", rev = "8f971175214a00fa354e0c08f8bdb6e15060e9d1" }
 
 [features]
