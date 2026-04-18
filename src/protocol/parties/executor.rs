@@ -43,7 +43,9 @@ pub fn binary_witness_sampler() -> VerticallyAlignedMatrix<RingElement> {
 pub fn execute() {
     println!("Generating CRS...");
 
-    let crs = CRS::gen_crs(WITNESS_DIM, RANK);
+    let active_rank = rank();
+    println!("Using rank={active_rank}");
+    let crs = CRS::gen_crs(WITNESS_DIM, active_rank);
     let vdf_crs = vdf_init();
 
     println!("CRS generated. Starting execution...");
@@ -56,7 +58,7 @@ pub fn execute() {
     println!("===== COMMITTING WITNESS =====");
     let start = std::time::Instant::now();
 
-    let commitment = commit_basic(&crs, &vdf_output.trace_witness, RANK);
+    let commitment = commit_basic(&crs, &vdf_output.trace_witness, active_rank);
 
     let commit_duration = start.elapsed().as_nanos();
     println!("TOTAL Commit time: {:?} ns", commit_duration);

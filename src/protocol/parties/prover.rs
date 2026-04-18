@@ -63,7 +63,7 @@ fn structured_round(
     projected_witness.width = 1;
     projected_witness.used_cols = 1;
     projected_witness.height = witness.height;
-    let projection_commitment = commit_basic(crs, &projected_witness, RANK);
+    let projection_commitment = commit_basic(crs, &projected_witness, rank());
     let batching_challenges = BatchingChallenges::sample(config, hash_wrapper);
 
     let vdf_challenge = if config.vdf {
@@ -156,14 +156,14 @@ fn structured_round(
     let folded_witness = fold(witness, &folding_challenges);
 
     if DEBUG {
-        let commitment_to_folded_witness = commit_basic(crs, &folded_witness, RANK);
+        let commitment_to_folded_witness = commit_basic(crs, &folded_witness, rank());
         let split_ref = VerticallyAlignedMatrix {
             height: folded_witness.height / 2,
             width: 2,
             data: folded_witness.data.clone(),
             used_cols: 2,
         };
-        let commitment_to_split_witness = commit_basic(crs, &split_ref, RANK);
+        let commitment_to_split_witness = commit_basic(crs, &split_ref, rank());
         let old_ck = crs.structured_ck_for_wit_dim(split_ref.height * 2);
         let composed = &(&(&*ONE - &old_ck[0].tensor_layers[0])
             * &commitment_to_split_witness[(0, 0)])
@@ -189,19 +189,31 @@ fn structured_round(
     };
 
     if DEBUG_HARDNESS {
+        println!("Estimating hardness against RSIS attack for the structured round...");
         let norm = norms::l2_norm(&split_witness.data);
         let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
 
         let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
 
-        let sec = estimate_rsis_security(&RSISParameters {
+        let sec: Result<rokoko::common::estimator::EstimatorResult, std::io::Error> = estimate_rsis_security(&RSISParameters {
             m: config.witness_height() as u64,
-            n: RANK as u64,
+            n: rank() as u64,
             length_bound: norm_unfolded as u64,
         });
+
+        let sec_par = sec.unwrap().secpar;
+
+        assert!(
+            sec_par >= EXPECTED_SEC_PARAM as f64,
+            "Estimated security against RSIS attack for the structured round is below the expected security parameter: {} bits, expected at least {} bits, increase RANK by setting --rank=<new_rank> in CLI (current rank: {})",
+            sec_par,
+            EXPECTED_SEC_PARAM,
+            rank()
+        );
+        
         println!(
             "Estimated security against RSIS attack for structured round: {} bits",
-            sec.unwrap().secpar
+            sec_par
         );
     }
 
@@ -229,7 +241,7 @@ fn structured_round(
         *decomposition_base_log,
         2,
     );
-    let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, RANK);
+    let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, rank());
 
     if DEBUG {
         debug_check_decomposed(
@@ -443,23 +455,36 @@ fn unstructured_round(
         *decomposition_base_log,
         2,
     );
-    let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, RANK);
+    let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, rank());
 
-    //  if DEBUG_HARDNESS {
-    //     let norm = norms::l2_norm(&decomposed_split_witness.data);
-    //     let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
+     if DEBUG_HARDNESS {
+        let norm = norms::l2_norm(&decomposed_split_witness.data);
+        let norm_composed = norm * (1f64 + 2f64.powi(*decomposition_base_log as i32));
 
-    //     let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
+        let norm_unfolded = norm_composed * 8f64 * DEGREE as f64; // 2 for sis break, 2 for challenges in numerator, 2 for denominator
 
-    //     let sec = estimate_rsis_security(
-    //         &RSISParameters {
-    //             m: config.witness_height() as u64,
-    //             n: RANK as u64,
-    //             length_bound: norm_unfolded as u64,
-    //         }
-    //     );
-    //     println!("Estimated security against RSIS attack for the unstructured round: {} bits", sec.unwrap().secpar);
-    // }
+        let sec = estimate_rsis_security(
+            &RSISParameters {
+                m: config.witness_height() as u64,
+                n: RANK as u64,
+                length_bound: norm_unfolded as u64,
+            }
+        );
+         let sec_par = sec.unwrap().secpar;
+
+        assert!(
+            sec_par >= EXPECTED_SEC_PARAM as f64,
+            "Estimated security against RSIS attack for the structured round is below the expected security parameter: {} bits, expected at least {} bits, increase RANK by setting --rank=<new_rank> in CLI (current rank: {})",
+            sec_par,
+            EXPECTED_SEC_PARAM,
+            rank()
+        );
+        
+        println!(
+            "Estimated security against RSIS attack for structured round: {} bits",
+            sec_par
+        );
+    }
 
     let outer_points_len =
         config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
@@ -801,7 +826,7 @@ fn debug_check_decomposed(
     projection_commitment: &HorizontallyAlignedMatrix<RingElement>,
     decomposition_base_log: usize,
 ) {
-    let commitment_to_split_witness = commit_basic(crs, split_witness, RANK);
+    let commitment_to_split_witness = commit_basic(crs, split_witness, rank());
     let old_ck = crs.structured_ck_for_wit_dim(split_witness.height * 2);
     let composed = compose_from_decomposed(
         &[

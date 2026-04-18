@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 pub static DEGREE: usize = 128;
 pub static HALF_DEGREE: usize = 64;
 pub static MOD_Q: u64 = 1125899906839937;
@@ -7,12 +9,29 @@ pub static NOF_BATCHES: usize = 2;
 
 pub const DEBUG: bool = true;
 
-pub const DEBUG_HARDNESS: bool = false;
+pub const DEBUG_HARDNESS: bool = true;
 
 // const WITNESS_DIM: usize = 2usize.pow(14);
 pub const WITNESS_DIM: usize = 2usize.pow(14); // most can fit on 64 GB
 pub const WITNESS_WIDTH: usize = 2usize;
 pub const RANK: usize = 8;
+pub const EXPECTED_SEC_PARAM: usize = 128;
+static RANK_OVERRIDE: OnceLock<usize> = OnceLock::new();
+
+pub fn set_rank(rank: usize) -> Result<(), String> {
+	if rank == 0 {
+		return Err("rank must be greater than 0".to_string());
+	}
+
+	RANK_OVERRIDE
+		.set(rank)
+		.map_err(|_| "rank has already been set".to_string())
+}
+
+#[inline(always)]
+pub fn rank() -> usize {
+	*RANK_OVERRIDE.get().unwrap_or(&RANK)
+}
 
 pub const VDF_MATRIX_HEIGHT: usize = 4;
 pub const VDF_BITS: usize = 64;

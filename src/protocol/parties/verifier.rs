@@ -348,7 +348,7 @@ fn structured_round(
     );
 
     let recomposed_commitments = HorizontallyAlignedMatrix {
-        height: RANK,
+        height: rank(),
         width: 4,
         data: compose_from_decomposed(
             &decomposed_split_commitment.data,
@@ -358,7 +358,7 @@ fn structured_round(
     };
 
     let mut temp = RingElement::zero(Representation::IncompleteNTT);
-    for r in 0..RANK {
+    for r in 0..rank() {
         let layer = state.crs.structured_ck_for_wit_dim(
             state.config.extended_witness_length / 2 / state.config.main_witness_columns,
         )[r]
@@ -552,7 +552,7 @@ fn last_round(state: VerifierRoundState, folded_witness: Vec<RingElement>) {
     let comm_time = std::time::Instant::now();
 
     // Verify commitment: commit(folded_witness) should match folded commitments
-    let folded_witness_commitment = commit_basic(state.crs, &folded_witness_matrix, RANK);
+    let folded_witness_commitment = commit_basic(state.crs, &folded_witness_matrix, rank());
     // let projected_witness_commitment = commit_basic(crs, &projected_witness_matrix, RANK);
 
     let elapsed = comm_time.elapsed();
@@ -561,7 +561,7 @@ fn last_round(state: VerifierRoundState, folded_witness: Vec<RingElement>) {
         elapsed.as_micros()
     );
 
-    for r in 0..RANK {
+    for r in 0..rank() {
         let mut folded_commitment_r = RingElement::zero(Representation::IncompleteNTT);
         for i in 0..state.config.main_witness_columns {
             temp *= (&state.folding_challenges[i], &state.commitment[(r, i)]);
@@ -645,13 +645,13 @@ fn unstructured_round(
 
     // Recompose commitments: width=2 (no projection)
     let recomposed_commitments = HorizontallyAlignedMatrix {
-        height: RANK,
+        height: rank(),
         width: 2,
         data: compose_from_decomposed(&decomposed_split_commitment.data, decomposition_base_log, 2),
     };
 
     let mut temp = RingElement::zero(Representation::IncompleteNTT);
-    for r in 0..RANK {
+    for r in 0..rank() {
         let layer = state.crs.structured_ck_for_wit_dim(
             (state.config.extended_witness_length >> state.config.main_witness_prefix.length)
                 / state.config.main_witness_columns,
