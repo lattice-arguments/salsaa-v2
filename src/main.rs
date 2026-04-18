@@ -56,7 +56,7 @@ fn parse_cli_config() -> Result<CliConfig, String> {
                 .parse::<usize>()
                 .map_err(|_| format!("invalid rank value: {value}"))?;
             cfg.rank = Some(parsed);
-        } else if arg == "--wit-dim-log" {
+        } else if arg == "--wit-dim-log" || arg == "-w" {
             let value = args
                 .next()
                 .ok_or_else(|| "missing value for --wit-dim-log".to_string())?;

@@ -33,6 +33,7 @@ fn sample_random_binary_vector(len: usize) -> Vec<RingElement> {
 pub fn execute() {
     println!("===== CONFIG =====");
     println!("Mode: {:?}", mode());
+    let active_rank = rank();
     // if mode() == Mode::VDF {
     //     // println("For VDF we have a witness of
     //     let witness_height = witness_dim() * WITNESS_WIDTH;
@@ -47,9 +48,18 @@ pub fn execute() {
         Mode::VDF => {
             let active_witness_dim = witness_dim();
 
-            let vdf_crs = vdf_init();
-
             let witness_height = active_witness_dim / WITNESS_WIDTH;
+            println!("Witness height: {witness_height}");
+            println!("Witness width: {}", WITNESS_WIDTH);
+            println!("norm: binary");
+            println!("Using rank={active_rank}");
+            println!(
+                "VDF steps: {}",
+                active_witness_dim / (VDF_MATRIX_HEIGHT * VDF_BITS)
+            );
+            println!("=================");
+
+            let vdf_crs = vdf_init();
 
             println!("DF execution...");
 
@@ -66,8 +76,6 @@ pub fn execute() {
 
     println!("Generating CRS...");
 
-    let active_rank = rank();
-    println!("Using rank={active_rank}");
     let crs = CRS::gen_crs(witness.height, active_rank);
 
     println!("CRS generated. Starting protocol execution...");
