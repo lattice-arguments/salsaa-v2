@@ -477,9 +477,9 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
         combiner_evaluation,
         field_combiner_evaluation,
         next: match config {
-            RoundConfig::Intermediate { next, .. } => {
-                Some(Box::new(init_verifier_sumcheck(next.as_ref().unwrap())))
-            }
+            RoundConfig::Intermediate { next, .. } => next
+                .as_ref()
+                .map(|next_config| Box::new(init_verifier_sumcheck(next_config))),
             RoundConfig::IntermediateUnstructured { next, .. } => {
                 Some(Box::new(init_verifier_sumcheck(next)))
             }

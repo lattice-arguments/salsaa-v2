@@ -290,16 +290,19 @@ fn structured_round(
         evaluation_point_to_structured_row(&new_evaluation_points_inner),
         evaluation_point_to_structured_row(&new_evaluation_points_inner_conjugated),
     ];
-    let next_level_proof = prover_round(
-        crs,
-        &decomposed_split_witness,
-        next.as_ref().unwrap(),
-        sumcheck_context.next.as_mut().unwrap(),
-        &next_level_eval_points,
-        &new_claims,
-        hash_wrapper,
-        None,
-    );
+    let next_level_proof = match next.as_ref() {
+        Some(next_config) => Some(Box::new(prover_round(
+            crs,
+            &decomposed_split_witness,
+            next_config,
+            sumcheck_context.next.as_mut().unwrap(),
+            &next_level_eval_points,
+            &new_claims,
+            hash_wrapper,
+            None,
+        ))),
+        None => None,
+    };
 
     let common = SalsaaProofCommon {
         ip_l2_claim,
@@ -313,7 +316,7 @@ fn structured_round(
         decomposed_split_commitment,
         projection_commitment,
         claim_over_projection: claim_over_projection.unwrap(),
-        next: Box::new(next_level_proof),
+        next: next_level_proof,
     }
 }
 

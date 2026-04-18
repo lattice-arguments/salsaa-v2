@@ -265,7 +265,7 @@ pub fn verifier_round(
         ) => structured_round(
             state,
             *decomposition_base_log,
-            next.as_ref().unwrap(),
+            next,
             new_claims,
             decomposed_split_commitment,
             claim_over_projection,
@@ -305,12 +305,12 @@ pub fn verifier_round(
 fn structured_round(
     state: VerifierRoundState,
     decomposition_base_log: u64,
-    next: &RoundConfig,
+    next: &Option<Box<RoundConfig>>,
     new_claims: &HorizontallyAlignedMatrix<RingElement>,
     decomposed_split_commitment: &BasicCommitment,
     claim_over_projection: &Vec<RingElement>,
     projection_commitment: &BasicCommitment,
-    next_proof: &SalsaaProof,
+    next_proof: &Option<Box<SalsaaProof>>,
 ) {
     let recomposed_claims = HorizontallyAlignedMatrix {
         height: 2,
@@ -437,12 +437,17 @@ fn structured_round(
         state.round_start.elapsed()
     );
 
+    if next.is_none() {
+        println!("No next round, stopping recursion");
+        return;
+    }
+
     verifier_round(
-        next,
+        next.as_ref().unwrap(),
         state.crs,
         state.verifier_context.next.as_mut().unwrap(),
         decomposed_split_commitment,
-        next_proof,
+        next_proof.as_ref().unwrap(),
         &next_level_eval_points,
         new_claims,
         state.hash_wrapper,

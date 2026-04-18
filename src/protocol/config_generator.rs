@@ -22,7 +22,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
         match mode() {
             Mode::SNARK => 2,          // we start from 2 witnesses cols
             Mode::VDF => 2,            // we start from 2 witnesses cols
-            Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
+            Mode::FOLDING_SCHEME => 2, // we start from 2 witnesses cols
         }
     } else {
         8
@@ -55,6 +55,8 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
     };
 
     if can_recurse {
+        let is_fs_first_round = is_first_round && mode() == Mode::FOLDING_SCHEME;
+
         let next_extended_witness_length = next_single_col_height * next_main_witness_columns * 2;
         RoundConfig::Intermediate {
             common,
@@ -64,10 +66,14 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
                 prefix: main_witness_columns,
                 length: main_witness_columns.ilog2() as usize + 1,
             },
-            next: Some(Box::new(build_round_config(
-                next_extended_witness_length,
-                false,
-            ))),
+            next: if is_fs_first_round {
+                None
+            } else {
+                Some(Box::new(build_round_config(
+                    next_extended_witness_length,
+                    false,
+                )))
+            },
         }
     } else {
         // Transition to unstructured rounds (no projection).

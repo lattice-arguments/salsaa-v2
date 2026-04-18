@@ -123,7 +123,7 @@ pub enum SalsaaProof {
         common: SalsaaProofCommon,
         new_claims: HorizontallyAlignedMatrix<RingElement>,
         decomposed_split_commitment: BasicCommitment,
-        next: Box<SalsaaProof>,
+        next: Option<Box<SalsaaProof>>,
         claim_over_projection: Vec<RingElement>,
     },
     IntermediateUnstructured {
@@ -228,7 +228,7 @@ impl SizeableProof for SalsaaProof {
                 round_size += new_claims_size + decomp_commit_size;
                 println!("  Round total: {:.2} KB", to_kb(round_size));
 
-                round_size + next.size_in_bits()
+                round_size + next.as_ref().map_or(0, |n| n.size_in_bits())
             }
             SalsaaProof::Last {
                 folded_witness,

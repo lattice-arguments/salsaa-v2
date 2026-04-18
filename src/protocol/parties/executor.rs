@@ -66,7 +66,7 @@ pub fn execute() {
     let active_witness_dim = witness_dim();
 
     let (witness, vdf_params) = match mode() {
-        Mode::SNARK => {
+        Mode::SNARK | Mode::FOLDING_SCHEME => {
             let witness_height = active_witness_dim / WITNESS_WIDTH;
 
             println!("Witness height: {witness_height}");
@@ -102,9 +102,6 @@ pub fn execute() {
             let vdf_output = delay_function(&y_0, witness_height, &vdf_crs);
             let witness_trace = vdf_output.trace_witness;
             (witness_trace, Some((y_0, vdf_output.y_t, vdf_crs)))
-        }
-        Mode::FOLDING_SCHEME => {
-            panic!("Folding scheme mode is not implemented yet");
         }
     };
 

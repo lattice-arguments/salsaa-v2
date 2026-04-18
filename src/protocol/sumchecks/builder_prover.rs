@@ -460,9 +460,10 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         linfsumcheck,
         vdfsumcheck,
         next: match config {
-            RoundConfig::Intermediate { next, .. } => {
-                Some(Box::new(init_prover_sumcheck(crs, next.as_ref().unwrap())))
-            }
+            RoundConfig::Intermediate { next, .. } => match next.as_ref() {
+                Some(next_config) => Some(Box::new(init_prover_sumcheck(crs, next_config))),
+                None => None,
+            },
             RoundConfig::IntermediateUnstructured { next, .. } => {
                 Some(Box::new(init_prover_sumcheck(crs, next)))
             }
