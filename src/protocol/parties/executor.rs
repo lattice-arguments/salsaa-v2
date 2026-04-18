@@ -36,7 +36,7 @@ pub fn witness_sampler(width: usize, height: usize) -> VerticallyAlignedMatrix<R
         width: width,
         data: sample_random_short_vector(
             height * width,
-            2u64.pow(10 as u32 - 1), // balanced representation
+            2u64.pow(9 as u32 - 1), // balanced representation
             Representation::IncompleteNTT,
         ),
         used_cols: width,
@@ -120,6 +120,11 @@ pub fn execute() {
 
     let commit_duration = start.elapsed().as_nanos();
     println!("TOTAL Commit time: {:?} ns", commit_duration);
+    let mut commitment_size_bits = 0;
+    for comm in &commitment.data {
+        commitment_size_bits += comm.size_in_bits();
+    }
+    println!("Commitment size: {:.2} KB", to_kb(commitment_size_bits));
 
     let no_claims = HorizontallyAlignedMatrix {
         height: 0,

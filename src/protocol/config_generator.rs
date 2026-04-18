@@ -22,7 +22,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
         match mode() {
             Mode::SNARK => 2,          // we start from 2 witnesses cols
             Mode::VDF => 2,            // we start from 2 witnesses cols
-            Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
+            Mode::FOLDING_SCHEME => 8, // we start from 8 witnesses cols, 4 for acc, 4 for input
         }
     } else {
         8

@@ -80,7 +80,7 @@ pub fn witness_width() -> usize {
     match mode() {
         Mode::SNARK => 2,          // we start from 2 witnesses cols
         Mode::VDF => 2,            // we start from 2 witnesses cols
-        Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
+        Mode::FOLDING_SCHEME => 8, // we start from 8 witnesses cols, 4 for acc, 4 for input
     }
 }
 
