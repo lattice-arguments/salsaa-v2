@@ -47,12 +47,14 @@ pub enum RoundConfig {
         projection_ratio: usize, // set 0 for no projection
         projection_prefix: Prefix,
         next: Option<Box<RoundConfig>>, // for folding scheme, we want to execute only one round of folding, so next will be None.
+        split_factor: usize, // 2 = split folded witness into two halves (default); 1 = no split (folding scheme).
     },
     IntermediateUnstructured {
         projection_ratio: usize,
         common: RoundConfigCommon,
         decomposition_base_log: u64,
         next: Box<RoundConfig>,
+        split_factor: usize, // 2 = split folded witness into two halves (default); 1 = no split.
     },
     Last {
         common: RoundConfigCommon,

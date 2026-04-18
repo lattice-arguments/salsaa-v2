@@ -50,11 +50,16 @@ fn structured_round(
         decomposition_base_log,
         projection_prefix,
         next,
+        split_factor,
         ..
     } = config
     else {
         unreachable!("Expected RoundConfig::Intermediate, got mismatch")
     };
+    assert!(
+        *split_factor == 1 || *split_factor == 2,
+        "split_factor must be 1 or 2"
+    );
 
     let witness_16 = prepare_i16_witness(witness);
     let mut projection_matrix = ProjectionMatrix::new(witness.width, 256);
@@ -161,7 +166,7 @@ fn structured_round(
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
     let folded_witness = fold(witness, &folding_challenges);
 
-    if DEBUG {
+    if DEBUG && *split_factor == 2 {
         let commitment_to_folded_witness = commit_basic(crs, &folded_witness, rank());
         let split_ref = VerticallyAlignedMatrix {
             height: folded_witness.height / 2,
@@ -182,16 +187,18 @@ fn structured_round(
     }
 
     let split_witness = VerticallyAlignedMatrix {
-        height: folded_witness.height / 2,
-        width: 2,
+        height: folded_witness.height / *split_factor,
+        width: *split_factor,
         data: folded_witness.data,
-        used_cols: 2,
+        used_cols: *split_factor,
     };
+    // width = split_factor (witness cols) * 2 (decomp) + split_factor (proj cols) * 2 (decomp)
+    let decomposed_width = split_factor * 4;
     let mut decomposed_split_witness = VerticallyAlignedMatrix {
         height: split_witness.height,
-        width: 8,
-        data: new_vec_zero_preallocated(split_witness.height * 8),
-        used_cols: 8,
+        width: decomposed_width,
+        data: new_vec_zero_preallocated(split_witness.height * decomposed_width),
+        used_cols: decomposed_width,
     };
 
     if DEBUG_HARDNESS {
@@ -224,33 +231,28 @@ fn structured_round(
         );
     }
 
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[..split_witness.height * 2],
-        &split_witness.data[..split_witness.height],
-        *decomposition_base_log,
-        2,
-    );
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[split_witness.height * 2..split_witness.height * 4],
-        &split_witness.data[split_witness.height..],
-        *decomposition_base_log,
-        2,
-    );
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[split_witness.height * 4..split_witness.height * 6],
-        &projected_witness.data[..split_witness.height],
-        *decomposition_base_log,
-        2,
-    );
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[split_witness.height * 6..],
-        &projected_witness.data[split_witness.height..],
-        *decomposition_base_log,
-        2,
-    );
+    let h = split_witness.height;
+    for i in 0..*split_factor {
+        decompose_chunks_into(
+            &mut decomposed_split_witness.data[i * 2 * h..(i + 1) * 2 * h],
+            &split_witness.data[i * h..(i + 1) * h],
+            *decomposition_base_log,
+            2,
+        );
+    }
+    let proj_offset = *split_factor * 2 * h;
+    for i in 0..*split_factor {
+        decompose_chunks_into(
+            &mut decomposed_split_witness.data
+                [proj_offset + i * 2 * h..proj_offset + (i + 1) * 2 * h],
+            &projected_witness.data[i * h..(i + 1) * h],
+            *decomposition_base_log,
+            2,
+        );
+    }
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, rank());
 
-    if DEBUG {
+    if DEBUG && *split_factor == 2 {
         debug_check_decomposed(
             crs,
             &split_witness,
@@ -261,10 +263,11 @@ fn structured_round(
     }
     let outer_points_len =
         config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
+    let split_bits = split_factor.ilog2() as usize;
 
     let new_evaluation_points_inner: Vec<_> = evaluation_points
         .iter()
-        .skip(outer_points_len + 1)
+        .skip(outer_points_len + split_bits)
         .cloned()
         .collect();
 
@@ -333,11 +336,16 @@ fn unstructured_round(
         decomposition_base_log,
         projection_ratio,
         next,
+        split_factor,
         ..
     } = config
     else {
         unreachable!("Expected RoundConfig::IntermediateUnstructured, got mismatch")
     };
+    assert!(
+        *split_factor == 1 || *split_factor == 2,
+        "split_factor must be 1 or 2"
+    );
 
     let mut projection_matrix = ProjectionMatrix::new(*projection_ratio, PROJECTION_HEIGHT);
     projection_matrix.sample(hash_wrapper);
@@ -448,29 +456,27 @@ fn unstructured_round(
     let folded_witness = fold(witness, &folding_challenges);
 
     let split_witness = VerticallyAlignedMatrix {
-        height: folded_witness.height / 2,
-        width: 2,
+        height: folded_witness.height / *split_factor,
+        width: *split_factor,
         data: folded_witness.data,
-        used_cols: 2,
+        used_cols: *split_factor,
     };
+    let decomposed_width = split_factor * 2;
     let mut decomposed_split_witness = VerticallyAlignedMatrix {
         height: split_witness.height,
-        width: 4,
-        data: new_vec_zero_preallocated(split_witness.height * 4),
-        used_cols: 4,
+        width: decomposed_width,
+        data: new_vec_zero_preallocated(split_witness.height * decomposed_width),
+        used_cols: decomposed_width,
     };
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[..split_witness.height * 2],
-        &split_witness.data[..split_witness.height],
-        *decomposition_base_log,
-        2,
-    );
-    decompose_chunks_into(
-        &mut decomposed_split_witness.data[split_witness.height * 2..],
-        &split_witness.data[split_witness.height..],
-        *decomposition_base_log,
-        2,
-    );
+    let h = split_witness.height;
+    for i in 0..*split_factor {
+        decompose_chunks_into(
+            &mut decomposed_split_witness.data[i * 2 * h..(i + 1) * 2 * h],
+            &split_witness.data[i * h..(i + 1) * h],
+            *decomposition_base_log,
+            2,
+        );
+    }
     let decomposed_split_commitment = commit_basic(crs, &decomposed_split_witness, rank());
 
     if DEBUG_HARDNESS {
@@ -502,10 +508,11 @@ fn unstructured_round(
 
     let outer_points_len =
         config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
+    let split_bits = split_factor.ilog2() as usize;
 
     let new_evaluation_points_inner: Vec<_> = evaluation_points
         .iter()
-        .skip(outer_points_len + 1)
+        .skip(outer_points_len + split_bits)
         .cloned()
         .collect();
     let new_evaluation_points_inner_expanded = PreprocessedRow::from_structured_row(

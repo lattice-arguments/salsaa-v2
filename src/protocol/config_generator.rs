@@ -74,6 +74,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
                     false,
                 )))
             },
+            split_factor: if is_fs_first_round { 1 } else { 2 },
         }
     } else {
         // Transition to unstructured rounds (no projection).
@@ -138,6 +139,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
                 MAX_UNSTRUCT_PROJ_RATIO,
             ),
             next: Box::new(next_unstructured_config),
+            split_factor: 2,
         };
 
         RoundConfig::Intermediate {
@@ -149,6 +151,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
                 length: main_witness_columns.ilog2() as usize + 1,
             },
             next: Some(Box::new(next_config)),
+            split_factor: 2,
         }
     }
 }
@@ -211,5 +214,6 @@ pub fn build_unstructured_round_config(extended_witness_length: usize) -> RoundC
             MAX_UNSTRUCT_PROJ_RATIO,
         ), // for now, we assume that each column is projected to PROJECTION_HEIGHT Zq elements.
         next: Box::new(next_config),
+        split_factor: 2,
     }
 }

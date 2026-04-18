@@ -252,6 +252,7 @@ pub fn verifier_round(
             RoundConfig::Intermediate {
                 decomposition_base_log,
                 next,
+                split_factor,
                 ..
             },
             SalsaaProof::Intermediate {
@@ -271,12 +272,14 @@ pub fn verifier_round(
             claim_over_projection,
             projection_commitment,
             next_proof,
+            *split_factor,
         ),
 
         (
             RoundConfig::IntermediateUnstructured {
                 decomposition_base_log,
                 next,
+                split_factor,
                 ..
             },
             SalsaaProof::IntermediateUnstructured {
@@ -292,6 +295,7 @@ pub fn verifier_round(
             new_claims,
             decomposed_split_commitment,
             next_proof,
+            *split_factor,
         ),
 
         (RoundConfig::Last { .. }, SalsaaProof::Last { folded_witness, .. }) => {
@@ -311,45 +315,69 @@ fn structured_round(
     claim_over_projection: &Vec<RingElement>,
     projection_commitment: &BasicCommitment,
     next_proof: &Option<Box<SalsaaProof>>,
+    split_factor: usize,
 ) {
+    assert!(split_factor == 1 || split_factor == 2, "split_factor must be 1 or 2");
+    // recomposed layout per row: [witness split cols..., projection split cols...]
+    // width = split_factor * 2.
+    let recomposed_width = split_factor * 2;
     let recomposed_claims = HorizontallyAlignedMatrix {
         height: 2,
-        width: 4,
+        width: recomposed_width,
         data: compose_from_decomposed(&new_claims.data, decomposition_base_log, 2),
     };
 
-    assert_eq!(
-        state.folded_claim,
-        &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 0)])
-            + &(&state.layer * &recomposed_claims[(0, 1)]),
-        "Recomposed claim for the witness does not match the original claim"
-    );
+    if split_factor == 2 {
+        assert_eq!(
+            state.folded_claim,
+            &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 0)])
+                + &(&state.layer * &recomposed_claims[(0, 1)]),
+            "Recomposed claim for the witness does not match the original claim"
+        );
 
-    assert_eq!(
-        state.folded_conj_claim,
-        &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 0)])
-            + &(&state.conj_layer * &recomposed_claims[(1, 1)]),
-        "Recomposed conjugate claim for the witness does not match the original claim"
-    );
+        assert_eq!(
+            state.folded_conj_claim,
+            &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 0)])
+                + &(&state.conj_layer * &recomposed_claims[(1, 1)]),
+            "Recomposed conjugate claim for the witness does not match the original claim"
+        );
 
-    // Check claims over the projection
-    assert_eq!(
-        claim_over_projection[0],
-        &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 2)])
-            + &(&state.layer * &recomposed_claims[(0, 3)]),
-        "Recomposed claim for the projection does not match the original claim"
-    );
+        assert_eq!(
+            claim_over_projection[0],
+            &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 2)])
+                + &(&state.layer * &recomposed_claims[(0, 3)]),
+            "Recomposed claim for the projection does not match the original claim"
+        );
 
-    assert_eq!(
-        claim_over_projection[1],
-        &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 2)])
-            + &(&state.conj_layer * &recomposed_claims[(1, 3)]),
-        "Recomposed conjugate claim for the projection does not match the original claim"
-    );
+        assert_eq!(
+            claim_over_projection[1],
+            &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 2)])
+                + &(&state.conj_layer * &recomposed_claims[(1, 3)]),
+            "Recomposed conjugate claim for the projection does not match the original claim"
+        );
+    } else {
+        // No split: recomposed claims directly equal the folded claims.
+        assert_eq!(
+            state.folded_claim, recomposed_claims[(0, 0)],
+            "Recomposed claim for the witness does not match the original claim"
+        );
+        assert_eq!(
+            state.folded_conj_claim, recomposed_claims[(1, 0)],
+            "Recomposed conjugate claim for the witness does not match the original claim"
+        );
+        assert_eq!(
+            claim_over_projection[0], recomposed_claims[(0, 1)],
+            "Recomposed claim for the projection does not match the original claim"
+        );
+        assert_eq!(
+            claim_over_projection[1], recomposed_claims[(1, 1)],
+            "Recomposed conjugate claim for the projection does not match the original claim"
+        );
+    }
 
     let recomposed_commitments = HorizontallyAlignedMatrix {
         height: rank(),
-        width: 4,
+        width: recomposed_width,
         data: compose_from_decomposed(
             &decomposed_split_commitment.data,
             decomposition_base_log as u64,
@@ -359,32 +387,44 @@ fn structured_round(
 
     let mut temp = RingElement::zero(Representation::IncompleteNTT);
     for r in 0..rank() {
-        let layer = state.crs.structured_ck_for_wit_dim(
-            state.config.extended_witness_length / 2 / state.config.main_witness_columns,
-        )[r]
-            .tensor_layers
-            .first()
-            .unwrap();
-
         let mut folded_commitment_r = RingElement::zero(Representation::IncompleteNTT);
         for i in 0..state.config.main_witness_columns {
             temp *= (&state.folding_challenges[i], &state.commitment[(r, i)]);
             folded_commitment_r += &temp;
         }
 
-        assert_eq!(
-            folded_commitment_r,
-            &(&(&*ONE - layer) * &recomposed_commitments[(r, 0)])
-                + &(layer * &recomposed_commitments[(r, 1)]),
-            "Recomposed commitment for the witness does not match the folded commitment"
-        );
+        if split_factor == 2 {
+            let layer = state.crs.structured_ck_for_wit_dim(
+                state.config.extended_witness_length / 2 / state.config.main_witness_columns,
+            )[r]
+                .tensor_layers
+                .first()
+                .unwrap();
 
-        assert_eq!(
-            projection_commitment[(r, 0)],
-            &(&(&*ONE - layer) * &recomposed_commitments[(r, 2)])
-                + &(layer * &recomposed_commitments[(r, 3)]),
-            "Recomposed commitment for the projection does not match"
-        );
+            assert_eq!(
+                folded_commitment_r,
+                &(&(&*ONE - layer) * &recomposed_commitments[(r, 0)])
+                    + &(layer * &recomposed_commitments[(r, 1)]),
+                "Recomposed commitment for the witness does not match the folded commitment"
+            );
+
+            assert_eq!(
+                projection_commitment[(r, 0)],
+                &(&(&*ONE - layer) * &recomposed_commitments[(r, 2)])
+                    + &(layer * &recomposed_commitments[(r, 3)]),
+                "Recomposed commitment for the projection does not match"
+            );
+        } else {
+            assert_eq!(
+                folded_commitment_r, recomposed_commitments[(r, 0)],
+                "Recomposed commitment for the witness does not match the folded commitment"
+            );
+            assert_eq!(
+                projection_commitment[(r, 0)],
+                recomposed_commitments[(r, 1)],
+                "Recomposed commitment for the projection does not match"
+            );
+        }
     }
 
     state.verifier_context.load_data(
@@ -414,10 +454,11 @@ fn structured_round(
     );
 
     // Recurse into the next round
+    let split_bits = split_factor.ilog2() as usize;
     let new_evaluation_points_inner = state
         .evaluation_points_ring_tree
         .iter()
-        .skip(state.outer_points_len + 1)
+        .skip(state.outer_points_len + split_bits)
         .cloned()
         .collect::<Vec<_>>();
 
@@ -626,57 +667,75 @@ fn unstructured_round(
     new_claims: &Vec<RingElement>,
     decomposed_split_commitment: &BasicCommitment,
     next_proof: &SalsaaProof,
+    split_factor: usize,
 ) {
-    // Recompose claims: width=2 (no projection columns)
+    assert!(split_factor == 1 || split_factor == 2, "split_factor must be 1 or 2");
     let recomposed_claims = HorizontallyAlignedMatrix {
         height: 2,
-        width: 2,
+        width: split_factor,
         data: compose_from_decomposed(new_claims, decomposition_base_log, 2),
     };
 
-    assert_eq!(
-        state.folded_claim,
-        &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 0)])
-            + &(&state.layer * &recomposed_claims[(0, 1)]),
-        "IntermediateUnstructured: recomposed claim does not match the folded claim"
-    );
+    if split_factor == 2 {
+        assert_eq!(
+            state.folded_claim,
+            &(&(&*ONE - &state.layer) * &recomposed_claims[(0, 0)])
+                + &(&state.layer * &recomposed_claims[(0, 1)]),
+            "IntermediateUnstructured: recomposed claim does not match the folded claim"
+        );
 
-    assert_eq!(
-        state.folded_conj_claim,
-        &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 0)])
-            + &(&state.conj_layer * &recomposed_claims[(1, 1)]),
-        "IntermediateUnstructured: recomposed conjugate claim does not match"
-    );
+        assert_eq!(
+            state.folded_conj_claim,
+            &(&(&*ONE - &state.conj_layer) * &recomposed_claims[(1, 0)])
+                + &(&state.conj_layer * &recomposed_claims[(1, 1)]),
+            "IntermediateUnstructured: recomposed conjugate claim does not match"
+        );
+    } else {
+        assert_eq!(
+            state.folded_claim, recomposed_claims[(0, 0)],
+            "IntermediateUnstructured: recomposed claim does not match the folded claim"
+        );
+        assert_eq!(
+            state.folded_conj_claim, recomposed_claims[(1, 0)],
+            "IntermediateUnstructured: recomposed conjugate claim does not match"
+        );
+    }
 
-    // Recompose commitments: width=2 (no projection)
     let recomposed_commitments = HorizontallyAlignedMatrix {
         height: rank(),
-        width: 2,
+        width: split_factor,
         data: compose_from_decomposed(&decomposed_split_commitment.data, decomposition_base_log, 2),
     };
 
     let mut temp = RingElement::zero(Representation::IncompleteNTT);
     for r in 0..rank() {
-        let layer = state.crs.structured_ck_for_wit_dim(
-            (state.config.extended_witness_length >> state.config.main_witness_prefix.length)
-                / state.config.main_witness_columns,
-        )[r]
-            .tensor_layers
-            .first()
-            .unwrap();
-
         let mut folded_commitment_r = RingElement::zero(Representation::IncompleteNTT);
         for i in 0..state.config.main_witness_columns {
             temp *= (&state.folding_challenges[i], &state.commitment[(r, i)]);
             folded_commitment_r += &temp;
         }
 
-        assert_eq!(
-            folded_commitment_r,
-            &(&(&*ONE - layer) * &recomposed_commitments[(r, 0)])
-                + &(layer * &recomposed_commitments[(r, 1)]),
-            "IntermediateUnstructured: recomposed commitment does not match"
-        );
+        if split_factor == 2 {
+            let layer = state.crs.structured_ck_for_wit_dim(
+                (state.config.extended_witness_length >> state.config.main_witness_prefix.length)
+                    / state.config.main_witness_columns,
+            )[r]
+                .tensor_layers
+                .first()
+                .unwrap();
+
+            assert_eq!(
+                folded_commitment_r,
+                &(&(&*ONE - layer) * &recomposed_commitments[(r, 0)])
+                    + &(layer * &recomposed_commitments[(r, 1)]),
+                "IntermediateUnstructured: recomposed commitment does not match"
+            );
+        } else {
+            assert_eq!(
+                folded_commitment_r, recomposed_commitments[(r, 0)],
+                "IntermediateUnstructured: recomposed commitment does not match"
+            );
+        }
     }
 
     state.verifier_context.load_data(
@@ -706,10 +765,11 @@ fn unstructured_round(
     );
 
     // Recurse into the next round
+    let split_bits = split_factor.ilog2() as usize;
     let new_evaluation_points_inner = state
         .evaluation_points_ring_tree
         .iter()
-        .skip(state.outer_points_len + 1)
+        .skip(state.outer_points_len + split_bits)
         .cloned()
         .collect::<Vec<_>>();
 
