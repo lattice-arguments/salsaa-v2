@@ -265,7 +265,7 @@ pub fn verifier_round(
         ) => structured_round(
             state,
             *decomposition_base_log,
-            next,
+            next.as_ref().unwrap(),
             new_claims,
             decomposed_split_commitment,
             claim_over_projection,

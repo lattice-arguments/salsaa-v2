@@ -381,7 +381,10 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
         .collect::<Vec<_>>();
 
     let type3evaluation = match config {
-        RoundConfig::Intermediate { projection_ratio: _, .. } => {
+        RoundConfig::Intermediate {
+            projection_ratio: _,
+            ..
+        } => {
             if !config.exact_binariness && !config.l2 {
                 None
             } else {
@@ -391,7 +394,7 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
                     projection_eval.expect("Projection evaluation should be initialized for intermediate rounds with projection"),
                 ))
             }
-        },
+        }
         _ => None,
     };
 
@@ -474,7 +477,9 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
         combiner_evaluation,
         field_combiner_evaluation,
         next: match config {
-            RoundConfig::Intermediate { next, .. } => Some(Box::new(init_verifier_sumcheck(next))),
+            RoundConfig::Intermediate { next, .. } => {
+                Some(Box::new(init_verifier_sumcheck(next.as_ref().unwrap())))
+            }
             RoundConfig::IntermediateUnstructured { next, .. } => {
                 Some(Box::new(init_verifier_sumcheck(next)))
             }

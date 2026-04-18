@@ -293,7 +293,7 @@ fn structured_round(
     let next_level_proof = prover_round(
         crs,
         &decomposed_split_witness,
-        next,
+        next.as_ref().unwrap(),
         sumcheck_context.next.as_mut().unwrap(),
         &next_level_eval_points,
         &new_claims,

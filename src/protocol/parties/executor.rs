@@ -12,9 +12,17 @@ use crate::{
 
 use rokoko::{
     common::{
-        arithmetic::ZERO, decomposition::decompose, hash::HashWrapper, matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix}, ring_arithmetic::{Representation, RingElement}, sampling::sample_random_short_vector
+        arithmetic::ZERO,
+        decomposition::decompose,
+        hash::HashWrapper,
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
+        ring_arithmetic::{Representation, RingElement},
+        sampling::sample_random_short_vector,
     },
-    protocol::{commitment::commit_basic, config::SizeableProof, crs::CRS, open::evaluation_point_to_structured_row},
+    protocol::{
+        commitment::commit_basic, config::SizeableProof, crs::CRS,
+        open::evaluation_point_to_structured_row,
+    },
 };
 
 pub struct VDFOutput {
@@ -22,10 +30,7 @@ pub struct VDFOutput {
     y_t: [RingElement; VDF_MATRIX_HEIGHT],
     trace_witness: VerticallyAlignedMatrix<RingElement>,
 }
-pub fn witness_sampler(
-    width: usize,
-    height: usize,
-) -> VerticallyAlignedMatrix<RingElement> {
+pub fn witness_sampler(width: usize, height: usize) -> VerticallyAlignedMatrix<RingElement> {
     VerticallyAlignedMatrix {
         height: height,
         width: width,
@@ -54,7 +59,6 @@ pub fn witness_sampler(
 //     }
 // }
 
-
 pub fn execute() {
     println!("===== CONFIG =====");
     println!("Mode: {:?}", mode());
@@ -64,7 +68,7 @@ pub fn execute() {
     let (witness, vdf_params) = match mode() {
         Mode::SNARK => {
             let witness_height = active_witness_dim / WITNESS_WIDTH;
-            
+
             println!("Witness height: {witness_height}");
             println!("Witness width: {}", WITNESS_WIDTH);
             println!("norm_inf: 2^10");
@@ -78,7 +82,6 @@ pub fn execute() {
             (witness_sampled, None)
         }
         Mode::VDF => {
-
             let witness_height = active_witness_dim / WITNESS_WIDTH;
             println!("Witness height: {witness_height}");
             println!("Witness width: {}", WITNESS_WIDTH);

@@ -46,7 +46,7 @@ pub enum RoundConfig {
         decomposition_base_log: u64,
         projection_ratio: usize, // set 0 for no projection
         projection_prefix: Prefix,
-        next: Box<RoundConfig>,
+        next: Option<Box<RoundConfig>>, // for folding scheme, we want to execute only one round of folding, so next will be None.
     },
     IntermediateUnstructured {
         projection_ratio: usize,

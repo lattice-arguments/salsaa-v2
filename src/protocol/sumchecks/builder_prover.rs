@@ -368,7 +368,7 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
     let type3sumcheck = match config {
         RoundConfig::Intermediate { .. } => {
             if !config.exact_binariness && !config.l2 {
-                None   
+                None
             } else {
                 Some(init_prover_type_3_sumcheck(
                     config,
@@ -376,7 +376,7 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
                     projection_sumcheck.clone().unwrap(),
                 ))
             }
-        },
+        }
         _ => None,
     };
 
@@ -461,7 +461,7 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         vdfsumcheck,
         next: match config {
             RoundConfig::Intermediate { next, .. } => {
-                Some(Box::new(init_prover_sumcheck(crs, next)))
+                Some(Box::new(init_prover_sumcheck(crs, next.as_ref().unwrap())))
             }
             RoundConfig::IntermediateUnstructured { next, .. } => {
                 Some(Box::new(init_prover_sumcheck(crs, next)))

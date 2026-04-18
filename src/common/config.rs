@@ -70,6 +70,7 @@ pub fn mode() -> Mode {
     *MODE_OVERRIDE.get().unwrap_or(&MODE)
 }
 
+#[inline(always)]
 pub fn witness_height() -> usize {
     witness_dim() / WITNESS_WIDTH
 }
