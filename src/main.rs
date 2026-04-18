@@ -1,3 +1,4 @@
+use rokoko::common::config::DEGREE;
 use rokoko::common::init_common;
 use rokoko::common::pool::{load_and_preallocate, save_access_stats};
 use salsaa::common::config::{Mode, mode, rank, set_mode, set_rank, set_witness_dim, witness_dim};
@@ -31,7 +32,7 @@ fn parse_witness_dim_log(value: &str) -> Result<usize, String> {
         ));
     }
 
-    Ok(1usize << log_dim)
+    Ok(1usize << (log_dim - DEGREE.ilog2() as usize)) // we multiply by degree to get the total witness dim
 }
 
 fn parse_cli_config() -> Result<CliConfig, String> {

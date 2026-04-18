@@ -12,7 +12,7 @@ use crate::{
 ///   (i.e., the next round couldn't support projection).
 pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) -> RoundConfig {
     let main_witness_columns = if is_first_round {
-        NUM_COLUMNS_INITIAL
+        witness_width() // depends on mode for the first round
     } else {
         8
     };
@@ -22,7 +22,7 @@ pub fn build_round_config(extended_witness_length: usize, is_first_round: bool) 
         match mode() {
             Mode::SNARK => 2,          // we start from 2 witnesses cols
             Mode::VDF => 2,            // we start from 2 witnesses cols
-            Mode::FOLDING_SCHEME => 2, // we start from 2 witnesses cols
+            Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
         }
     } else {
         8

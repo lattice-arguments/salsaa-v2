@@ -22,7 +22,7 @@ pub enum Mode {
 pub const MODE: Mode = Mode::VDF;
 // const WITNESS_DIM: usize = 2usize.pow(15);
 pub const WITNESS_DIM: usize = 2usize.pow(20); // most can fit on 64 GB
-pub const WITNESS_WIDTH: usize = 2usize;
+
 pub const RANK: usize = 8;
 pub const EXPECTED_SEC_PARAM: usize = 128;
 static RANK_OVERRIDE: OnceLock<usize> = OnceLock::new();
@@ -72,7 +72,16 @@ pub fn mode() -> Mode {
 
 #[inline(always)]
 pub fn witness_height() -> usize {
-    witness_dim() / WITNESS_WIDTH
+    witness_dim() / witness_width()
+}
+
+#[inline(always)]
+pub fn witness_width() -> usize {
+    match mode() {
+        Mode::SNARK => 2,          // we start from 2 witnesses cols
+        Mode::VDF => 2,            // we start from 2 witnesses cols
+        Mode::FOLDING_SCHEME => 4, // we start from 4 witnesses cols
+    }
 }
 
 pub const VDF_MATRIX_HEIGHT: usize = 4;
@@ -83,8 +92,6 @@ pub const VDF_MATRIX_WIDTH: usize = VDF_BITS * VDF_MATRIX_HEIGHT;
 /// Within each step, G uses c^{0..HEIGHT-1} and A uses c^{HEIGHT..2*HEIGHT-1}.
 /// A-powers for step i overlap with G-powers for step i+1, giving telescoping.
 pub const VDF_STRIDE: usize = VDF_MATRIX_HEIGHT;
-
-pub const NUM_COLUMNS_INITIAL: usize = 2;
 
 pub const PROJECTION_HEIGHT: usize = 256;
 

@@ -67,24 +67,24 @@ pub fn execute() {
 
     let (witness, vdf_params) = match mode() {
         Mode::SNARK | Mode::FOLDING_SCHEME => {
-            let witness_height = active_witness_dim / WITNESS_WIDTH;
+            let witness_height = active_witness_dim / witness_width();
 
             println!("Witness height: {witness_height}");
-            println!("Witness width: {}", WITNESS_WIDTH);
+            println!("Witness width: {}", witness_width());
             println!("norm_inf: 2^10");
             println!("Using rank={active_rank}");
             println!("=================");
 
-            let witness_sampled = witness_sampler(WITNESS_WIDTH, witness_height);
+            let witness_sampled = witness_sampler(witness_width(), witness_height);
 
             // let decomposed_witness = decompose_witness(&witness_sampled);
 
             (witness_sampled, None)
         }
         Mode::VDF => {
-            let witness_height = active_witness_dim / WITNESS_WIDTH;
+            let witness_height = active_witness_dim / witness_width();
             println!("Witness height: {witness_height}");
-            println!("Witness width: {}", WITNESS_WIDTH);
+            println!("Witness width: {}", witness_width());
             println!("norm: binary");
             println!("Using rank={active_rank}");
             println!(

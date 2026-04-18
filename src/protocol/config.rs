@@ -115,7 +115,7 @@ impl ConfigBase for RoundConfig {
 }
 
 pub static CONFIG: LazyLock<RoundConfig> =
-    LazyLock::new(|| build_round_config(witness_height() * WITNESS_WIDTH * 2, true));
+    LazyLock::new(|| build_round_config(witness_height() * witness_width() * 2, true));
 
 pub enum SalsaaProof {
     Intermediate {
