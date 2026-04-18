@@ -14,9 +14,7 @@ use rokoko::{
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         sumcheck_element::SumcheckElement,
     },
-    protocol::{
-        project_2::BatchedProjectionChallengesSuccinct
-    },
+    protocol::project_2::BatchedProjectionChallengesSuccinct,
 };
 
 /// Computes the batched claim from individual sumcheck claims.
