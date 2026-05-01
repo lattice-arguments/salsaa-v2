@@ -317,7 +317,10 @@ fn structured_round(
     next_proof: &Option<Box<SalsaaProof>>,
     split_factor: usize,
 ) {
-    assert!(split_factor == 1 || split_factor == 2, "split_factor must be 1 or 2");
+    assert!(
+        split_factor == 1 || split_factor == 2,
+        "split_factor must be 1 or 2"
+    );
     // recomposed layout per row: [witness split cols..., projection split cols...]
     // width = split_factor * 2.
     let recomposed_width = split_factor * 2;
@@ -358,19 +361,23 @@ fn structured_round(
     } else {
         // No split: recomposed claims directly equal the folded claims.
         assert_eq!(
-            state.folded_claim, recomposed_claims[(0, 0)],
+            state.folded_claim,
+            recomposed_claims[(0, 0)],
             "Recomposed claim for the witness does not match the original claim"
         );
         assert_eq!(
-            state.folded_conj_claim, recomposed_claims[(1, 0)],
+            state.folded_conj_claim,
+            recomposed_claims[(1, 0)],
             "Recomposed conjugate claim for the witness does not match the original claim"
         );
         assert_eq!(
-            claim_over_projection[0], recomposed_claims[(0, 1)],
+            claim_over_projection[0],
+            recomposed_claims[(0, 1)],
             "Recomposed claim for the projection does not match the original claim"
         );
         assert_eq!(
-            claim_over_projection[1], recomposed_claims[(1, 1)],
+            claim_over_projection[1],
+            recomposed_claims[(1, 1)],
             "Recomposed conjugate claim for the projection does not match the original claim"
         );
     }
@@ -416,7 +423,8 @@ fn structured_round(
             );
         } else {
             assert_eq!(
-                folded_commitment_r, recomposed_commitments[(r, 0)],
+                folded_commitment_r,
+                recomposed_commitments[(r, 0)],
                 "Recomposed commitment for the witness does not match the folded commitment"
             );
             assert_eq!(
@@ -669,7 +677,10 @@ fn unstructured_round(
     next_proof: &SalsaaProof,
     split_factor: usize,
 ) {
-    assert!(split_factor == 1 || split_factor == 2, "split_factor must be 1 or 2");
+    assert!(
+        split_factor == 1 || split_factor == 2,
+        "split_factor must be 1 or 2"
+    );
     let recomposed_claims = HorizontallyAlignedMatrix {
         height: 2,
         width: split_factor,
@@ -692,11 +703,13 @@ fn unstructured_round(
         );
     } else {
         assert_eq!(
-            state.folded_claim, recomposed_claims[(0, 0)],
+            state.folded_claim,
+            recomposed_claims[(0, 0)],
             "IntermediateUnstructured: recomposed claim does not match the folded claim"
         );
         assert_eq!(
-            state.folded_conj_claim, recomposed_claims[(1, 0)],
+            state.folded_conj_claim,
+            recomposed_claims[(1, 0)],
             "IntermediateUnstructured: recomposed conjugate claim does not match"
         );
     }
@@ -732,7 +745,8 @@ fn unstructured_round(
             );
         } else {
             assert_eq!(
-                folded_commitment_r, recomposed_commitments[(r, 0)],
+                folded_commitment_r,
+                recomposed_commitments[(r, 0)],
                 "IntermediateUnstructured: recomposed commitment does not match"
             );
         }

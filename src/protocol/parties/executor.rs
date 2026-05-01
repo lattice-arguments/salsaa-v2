@@ -17,9 +17,7 @@ use rokoko::{
         ring_arithmetic::{Representation, RingElement},
         sampling::sample_random_short_vector,
     },
-    protocol::{
-        commitment::commit_basic, config::SizeableProof, crs::CRS,
-    },
+    protocol::{commitment::commit_basic, config::SizeableProof, crs::CRS},
 };
 
 pub fn witness_sampler(width: usize, height: usize) -> VerticallyAlignedMatrix<RingElement> {

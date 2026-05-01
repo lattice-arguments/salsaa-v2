@@ -308,9 +308,13 @@ fn structured_round(
     };
 
     if DEBUG && next_level_proof.is_none() {
-        println!("No recursion to next round since this is the last round of the folding scheme config. Skipping checks for the next round's evaluation points and claims.") ;
-        println!("Next round witness height and width (after folding, splitting, and decomposition) would have been: height={}, width={}", split_witness.height, decomposed_split_witness.width);
-
+        println!(
+            "No recursion to next round since this is the last round of the folding scheme config. Skipping checks for the next round's evaluation points and claims."
+        );
+        println!(
+            "Next round witness height and width (after folding, splitting, and decomposition) would have been: height={}, width={}",
+            split_witness.height, decomposed_split_witness.width
+        );
     }
 
     let common = SalsaaProofCommon {
