@@ -6,7 +6,6 @@ use rokoko::{
     },
 };
 
-// TODO: make the function in Rokoko public and delete from here
 pub fn sumcheck_from_prefix(
     prefix: &Prefix,
     total_vars: usize,

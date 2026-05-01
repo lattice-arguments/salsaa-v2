@@ -12,8 +12,6 @@ use crate::{
 
 use rokoko::{
     common::{
-        arithmetic::ZERO,
-        decomposition::decompose,
         hash::HashWrapper,
         matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{Representation, RingElement},
@@ -21,15 +19,9 @@ use rokoko::{
     },
     protocol::{
         commitment::commit_basic, config::SizeableProof, crs::CRS,
-        open::evaluation_point_to_structured_row,
     },
 };
 
-pub struct VDFOutput {
-    y_int: [RingElement; VDF_MATRIX_HEIGHT], // TODO: this y_int is not needed but let's keep it for now
-    y_t: [RingElement; VDF_MATRIX_HEIGHT],
-    trace_witness: VerticallyAlignedMatrix<RingElement>,
-}
 pub fn witness_sampler(width: usize, height: usize) -> VerticallyAlignedMatrix<RingElement> {
     VerticallyAlignedMatrix {
         height: height,
@@ -42,22 +34,6 @@ pub fn witness_sampler(width: usize, height: usize) -> VerticallyAlignedMatrix<R
         used_cols: width,
     }
 }
-
-// pub fn decompose_witness(
-//     witness: &VerticallyAlignedMatrix<RingElement>,
-// ) -> VerticallyAlignedMatrix<RingElement> {
-//     let decomposed_data = decompose(
-//         &witness.data,
-//         4,
-//         2,
-//     );
-//     VerticallyAlignedMatrix {
-//         height: witness.height * 2,
-//         width: witness.width,
-//         data: decomposed_data,
-//         used_cols: witness.width,
-//     }
-// }
 
 pub fn execute() {
     println!("===== CONFIG =====");

@@ -59,7 +59,6 @@ pub struct Type1VerifierSumcheckContext {
 pub struct Type3VerifierSumcheckContext {
     pub c2l_evaluation: ElephantCell<StructuredRowEvaluationLinearSumcheck<RingElement>>,
     pub c0l_evaluation: ElephantCell<StructuredRowEvaluationLinearSumcheck<RingElement>>,
-    // TODO: this can be over fields, then then mapped to rings?. Actually, all of those can be over fields (I guess?).
     pub flattened_projection_matrix_evaluation:
         ElephantCell<BasicEvaluationLinearSumcheck<QuadraticExtension>>,
     pub c2r_evaluation: ElephantCell<StructuredRowEvaluationLinearSumcheck<RingElement>>,

@@ -17,7 +17,7 @@ use rokoko::{
         fold::fold,
         open::evaluation_point_to_structured_row,
         project::{prepare_i16_witness, project},
-        project_2::{BatchedProjectionChallenges, batch_projection_n_times, project_coefficients},
+        project_2::{batch_projection_n_times, project_coefficients},
         sumcheck_utils::common::HighOrderSumcheckData,
     },
 };

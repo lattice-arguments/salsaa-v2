@@ -1,0 +1,39 @@
+Using rank=11, witness_dim=2^23 (8388608), mode=FOLDING_SCHEME
+Sumcheck unsafe...
+✓ AVX-512F is enabled in runtime detection and available on this CPU
+✓✓ AVX-512F is enabled at compile time
+✓ AVX-512DQ is enabled in runtime detection and available on this CPU
+✓✓ AVX-512DQ is enabled at compile time
+✓ AVX-512VBMI2 is enabled in runtime detection and available on this CPU
+✓✓ AVX-512VBMI2 is enabled at compile time
+Running executor...
+===== CONFIG =====
+Mode: FOLDING_SCHEME
+Witness height: 1048576
+Witness width: 8
+norm_inf: 2^10
+Using rank=11
+=================
+Generating CRS...
+CRS generated. Starting protocol execution...
+Building round config: extended_witness_length=16777216, single_col_height=1048576, next_single_col_height=524288, can_recurse=true
+===== COMMITTING WITNESS =====
+TOTAL Commit time: 17688530192 ns
+Commitment size: 66.04 KB
+===== STARTING PROVER =====
+TOTAL Prove time: 63643 ms
+===== PROOF SIZE =====
+  Polys: 0.84 KB
+  Claims: 11.98 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.24 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 6.01 KB
+  Decomposed split commitment: 33.01 KB
+  Round total: 62.33 KB
+Total proof size: 62.33 KB
+===== STARTING VERIFIER =====
+Verifier round 0 took 653.337µs
+No next round, stopping recursion
+TOTAL Verify time: 685474 ns
+===== VERIFICATION PASSED =====

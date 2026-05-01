@@ -5,10 +5,10 @@ edition = "2024"
 
 [dependencies]
 rayon = "1.12.0"
-rokoko = { git = "https://github.com/lattice-arguments/rokoko.git", rev = "8f971175214a00fa354e0c08f8bdb6e15060e9d1" }
+rokoko = { git = "https://github.com/lattice-arguments/rokoko.git", rev = "2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f" }
 
 [features]
-default = ["rokoko/p-28"]
+default = ["p-26", "incomplete-rexl"]
 
 incomplete-rexl = ["rokoko/incomplete-rexl"]
 unsafe-sumcheck = ["rokoko/unsafe-sumcheck"]

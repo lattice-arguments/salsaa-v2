@@ -51,7 +51,6 @@ impl ProverSumcheckContext {
 
             for (i, el) in flattened_projection.iter().enumerate() {
                 field_to_ring_element_into(&mut flattened_projection_ring[i], el);
-                // TODO: I Spent 1h debugging this and it turned out that I forgot to convert the flattened projection matrix from homogenized field extensions to incomplete NTT, which is what the sumcheck expects. Rethink the interfaces here to avoid such issues in the future, maybe by having a clear type for the per rep.
                 flattened_projection_ring[i].from_homogenized_field_extensions_to_incomplete_ntt();
             }
             if let Some(type3) = &mut self.type3sumcheck {

@@ -8,7 +8,7 @@ pub struct VDFCrs {
     pub data: HorizontallyAlignedMatrix<RingElement>,
 }
 pub struct VDFOutput {
-    pub y_int: [RingElement; VDF_MATRIX_HEIGHT], // TODO: this y_int is not needed but let's keep it for now
+    pub y_int: [RingElement; VDF_MATRIX_HEIGHT],
     pub y_t: [RingElement; VDF_MATRIX_HEIGHT],
     pub trace_witness: VerticallyAlignedMatrix<RingElement>,
 }
@@ -155,7 +155,6 @@ pub fn vdf_init() -> VDFCrs {
 /// The input is assumed to be in IncompleteNTT; we convert to EvenOddCoefficients
 /// to access raw coefficients, decompose, then convert each result back.
 
-// TODO: deal with input with helper?
 pub fn decompose_binary_into(element: &RingElement, target: &mut [RingElement]) {
     assert!(
         target.len() >= 64,
@@ -297,7 +296,7 @@ mod tests {
         let y_0: [RingElement; VDF_MATRIX_HEIGHT] =
             std::array::from_fn(|_| RingElement::random(Representation::IncompleteNTT));
         let vdf_crs = vdf_init();
-        let vdf_output = run_vdf(&y_0, test_dim, &vdf_crs);
+        let vdf_output = delay_function(&y_0, test_dim, &vdf_crs);
 
         let steps_per_col = test_dim / VDF_MATRIX_WIDTH;
         let w = &vdf_output.trace_witness;

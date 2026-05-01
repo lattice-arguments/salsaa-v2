@@ -1,0 +1,215 @@
+Using rank=11, witness_dim=2^24 (16777216), mode=VDF
+Sumcheck unsafe...
+✓ AVX-512F is enabled in runtime detection and available on this CPU
+✓✓ AVX-512F is enabled at compile time
+✓ AVX-512DQ is enabled in runtime detection and available on this CPU
+✓✓ AVX-512DQ is enabled at compile time
+✓ AVX-512VBMI2 is enabled in runtime detection and available on this CPU
+✓✓ AVX-512VBMI2 is enabled at compile time
+Running executor...
+===== CONFIG =====
+Mode: VDF
+Witness height: 8388608
+Witness width: 2
+norm: binary
+Using rank=11
+VDF steps: 65536
+=================
+Initializing VDF CRS...
+DF execution...
+Executing delay function with 65536 steps
+Delay function executed in 11256784 µs
+Avg step time: 171.764892578125 µs
+Generating CRS...
+CRS generated. Starting protocol execution...
+Building round config: extended_witness_length=33554432, single_col_height=8388608, next_single_col_height=4194304, can_recurse=true
+Building round config: extended_witness_length=67108864, single_col_height=4194304, next_single_col_height=2097152, can_recurse=true
+Building round config: extended_witness_length=33554432, single_col_height=2097152, next_single_col_height=1048576, can_recurse=true
+Building round config: extended_witness_length=16777216, single_col_height=1048576, next_single_col_height=524288, can_recurse=true
+Building round config: extended_witness_length=8388608, single_col_height=524288, next_single_col_height=262144, can_recurse=true
+Building round config: extended_witness_length=4194304, single_col_height=262144, next_single_col_height=131072, can_recurse=true
+Building round config: extended_witness_length=2097152, single_col_height=131072, next_single_col_height=65536, can_recurse=true
+Building round config: extended_witness_length=1048576, single_col_height=65536, next_single_col_height=32768, can_recurse=true
+Building round config: extended_witness_length=524288, single_col_height=32768, next_single_col_height=16384, can_recurse=true
+Building round config: extended_witness_length=262144, single_col_height=16384, next_single_col_height=8192, can_recurse=true
+Building round config: extended_witness_length=131072, single_col_height=8192, next_single_col_height=4096, can_recurse=true
+Building round config: extended_witness_length=65536, single_col_height=4096, next_single_col_height=2048, can_recurse=true
+Building round config: extended_witness_length=32768, single_col_height=2048, next_single_col_height=1024, can_recurse=false
+Building unstructured round config: extended_witness_length=8192, single_col_height=1024, next_height=512
+Building unstructured round config: extended_witness_length=2048, single_col_height=512, next_height=256
+Building unstructured round config: extended_witness_length=1024, single_col_height=256, next_height=128
+===== COMMITTING WITNESS =====
+TOTAL Commit time: 36512029455 ns
+Commitment size: 16.50 KB
+===== STARTING PROVER =====
+Preallocated RingElement pool miss for size 0, allocating new
+Using unstructured projection with ratio 8
+Sampling projection matrix for unstructured projection with ratio 8
+TOTAL Prove time: 951953 ms
+===== PROOF SIZE =====
+  Polys: 0.88 KB
+  Claims: 3.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.24 KB
+  L2 claim: 0.00 KB, Linf claim: 0.75 KB
+  New claims: 6.00 KB
+  Decomposed split commitment: 32.98 KB
+  Round total: 53.35 KB
+  Polys: 0.92 KB
+  Claims: 6.00 KB
+  Claim over projection: 1.49 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.00 KB
+  Decomposed split commitment: 66.01 KB
+  Round total: 95.43 KB
+  Polys: 0.88 KB
+  Claims: 11.98 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.24 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 11.99 KB
+  Decomposed split commitment: 65.97 KB
+  Round total: 101.32 KB
+  Polys: 0.84 KB
+  Claims: 11.98 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.26 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.00 KB
+  Decomposed split commitment: 66.01 KB
+  Round total: 101.34 KB
+  Polys: 0.81 KB
+  Claims: 12.01 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.76 KB, Linf claim: 0.00 KB
+  New claims: 12.01 KB
+  Decomposed split commitment: 65.99 KB
+  Round total: 101.33 KB
+  Polys: 0.77 KB
+  Claims: 12.01 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.24 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 11.99 KB
+  Decomposed split commitment: 66.00 KB
+  Round total: 101.25 KB
+  Polys: 0.74 KB
+  Claims: 12.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.24 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.00 KB
+  Decomposed split commitment: 65.98 KB
+  Round total: 101.22 KB
+  Polys: 0.70 KB
+  Claims: 11.99 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.00 KB
+  Decomposed split commitment: 66.01 KB
+  Round total: 101.19 KB
+  Polys: 0.67 KB
+  Claims: 12.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.01 KB
+  Decomposed split commitment: 66.02 KB
+  Round total: 101.20 KB
+  Polys: 0.63 KB
+  Claims: 12.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.00 KB
+  Decomposed split commitment: 66.02 KB
+  Round total: 101.17 KB
+  Polys: 0.60 KB
+  Claims: 12.02 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.26 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.01 KB
+  Decomposed split commitment: 65.98 KB
+  Round total: 101.12 KB
+  Polys: 0.56 KB
+  Claims: 12.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.26 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.01 KB
+  Decomposed split commitment: 65.98 KB
+  Round total: 101.07 KB
+  Polys: 0.53 KB
+  Claims: 12.00 KB
+  Claim over projection: 1.50 KB
+  Projection commitment: 8.25 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 12.01 KB
+  Decomposed split commitment: 66.03 KB
+  Round total: 101.07 KB
+  Polys: 0.46 KB
+  Claims: 12.00 KB
+  Claim over projection: 0.00 KB
+  Projection commitment: 0.00 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 6.00 KB
+  Decomposed split commitment: 33.02 KB
+  Projection image: 2.00 KB
+  Batched projection: 12.01 KB
+  Round total: 66.23 KB
+  Polys: 0.39 KB
+  Claims: 6.00 KB
+  Claim over projection: 0.00 KB
+  Projection commitment: 0.00 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 6.00 KB
+  Decomposed split commitment: 32.98 KB
+  Projection image: 2.00 KB
+  Batched projection: 5.99 KB
+  Round total: 54.11 KB
+  Polys: 0.35 KB
+  Claims: 6.00 KB
+  Claim over projection: 0.00 KB
+  Projection commitment: 0.00 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  New claims: 6.01 KB
+  Decomposed split commitment: 32.98 KB
+  Projection image: 2.00 KB
+  Batched projection: 6.00 KB
+  Round total: 54.08 KB
+  Polys: 0.32 KB
+  Claims: 5.99 KB
+  Claim over projection: 0.00 KB
+  Projection commitment: 0.00 KB
+  L2 claim: 0.75 KB, Linf claim: 0.00 KB
+  Folded witness: 96.00 KB
+  Projection image: 8.55 KB
+  Batched projection: 6.01 KB
+  Round total (last): 117.61 KB
+Total proof size: 1554.10 KB
+===== STARTING VERIFIER =====
+Verifier round 0 took 6.037286ms
+Verifier round 1 took 625.254µs
+Verifier round 2 took 663.471µs
+Verifier round 3 took 700.627µs
+Verifier round 4 took 679.068µs
+Verifier round 5 took 665.214µs
+Verifier round 6 took 694.763µs
+Verifier round 7 took 690.522µs
+Verifier round 8 took 686.442µs
+Verifier round 9 took 665.763µs
+Verifier round 10 took 664.298µs
+Verifier round 11 took 660.944µs
+Preallocated RingElement pool miss for size 0, allocating new
+Verifier round 12 took 630.892µs
+Verifier round 13 (unstructured) took 312.766µs
+Verifier round 14 (unstructured) took 291.18µs
+Verifier round 15 (unstructured) took 279.058µs
+Verifier commitment recomputation took 233 µs
+Verifier round 16 (last) took 655.825µs
+TOTAL Verify time: 15972135 ns
+===== VERIFICATION PASSED =====
