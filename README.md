@@ -20,7 +20,7 @@ Where the command line option are as follows
 | -w     | numeric | Sets the power of the witness dimension (e.g `26`,`28`,`30` for 2^26, 2^28, 2^30 respectively) |
 | -m     | `vdf`,`folding-scheme`,`snark`   | Selects the execution mode (one of `vdf`, `folding-scheme`, `snark`) |
 
-Using the debug-hardness flag estimates the security bits against the RSIS attack, checking that they are at least 128bits for the given rank.
+Using the debug-hardness flag estimates the security level (in bits) based on the SIS hardness, verifying that it is at least 128 bits for the given rank.
 For optimal performance, run with `--features unsafe-sumcheck`, which uses further code optimisations in the sumcheck subprotocols.
 
 ### Modular ring arithmetic backend
