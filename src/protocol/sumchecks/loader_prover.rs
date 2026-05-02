@@ -15,7 +15,7 @@ use rokoko::{
 use crate::{
     common::config::*,
     protocol::{
-        project::BatchingChallenges, sumchecks::context_prover::ProverSumcheckContext, vdf::VDFCrs,
+        project::BatchingChallenges, sumchecks::context_prover::ProverSumcheckContext, df::DFCrs,
     },
 };
 
@@ -32,7 +32,7 @@ impl ProverSumcheckContext {
             &[BatchedProjectionChallenges; NOF_BATCHES],
         >,
         vdf_challenge: Option<&RingElement>,
-        vdf_crs_param: Option<&VDFCrs>,
+        df_crs_param: Option<&DFCrs>,
     ) {
         self.witness_sumcheck.borrow_mut().load_from(witness);
         self.witness_conjugated_sumcheck
@@ -139,17 +139,17 @@ impl ProverSumcheckContext {
         }
 
         if let Some(vdf) = &mut self.vdfsumcheck {
-            let c = vdf_challenge.expect("VDF sumcheck enabled but no vdf_challenge provided");
-            let vdf_crs_ref = vdf_crs_param.expect("VDF sumcheck enabled but no vdf_crs provided");
+            let c = vdf_challenge.expect("VDF sumcheck enabled but no df_challenge provided");
+            let vdf_crs_ref = df_crs_param.expect("VDF sumcheck enabled but no df_crs provided");
 
-            // Compute vdf_batched_row[j] for j = 0..VDF_MATRIX_WIDTH-1:
-            //   vdf_batched_row[j] = c^{j/VDF_BITS} · 2^{j%VDF_BITS} + sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
-            // The G contribution: block row (j/VDF_BITS) contributes 2^{j%VDF_BITS} with weight c^{j/VDF_BITS}.
+            // Compute vdf_batched_row[j] for j = 0..DF_MATRIX_WIDTH-1:
+            //   vdf_batched_row[j] = c^{j/DF_BITS} · 2^{j%DF_BITS} + sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
+            // The G contribution: block row (j/DF_BITS) contributes 2^{j%DF_BITS} with weight c^{j/DF_BITS}.
             // The A contribution: each row r contributes A[r,j] with weight c^{HEIGHT+r}.
-            let mut batched_row: Vec<RingElement> = Vec::with_capacity(VDF_MATRIX_WIDTH);
+            let mut batched_row: Vec<RingElement> = Vec::with_capacity(DF_MATRIX_WIDTH);
             // Precompute c powers: c^0, c^1, ..., c^{2*HEIGHT-1}
             // (G uses c^0..c^{HEIGHT-1}, A uses c^{HEIGHT}..c^{2*HEIGHT-1})
-            let num_local_powers = 2 * VDF_MATRIX_HEIGHT;
+            let num_local_powers = 2 * DF_MATRIX_HEIGHT;
             let mut c_powers: Vec<RingElement> = Vec::with_capacity(num_local_powers);
             c_powers.push(RingElement::constant(1, Representation::IncompleteNTT));
             for _ in 1..num_local_powers {
@@ -157,16 +157,16 @@ impl ProverSumcheckContext {
                 c_powers.push(&prev * c);
             }
             let mut temp_a = RingElement::zero(Representation::IncompleteNTT);
-            for j in 0..VDF_MATRIX_WIDTH {
-                let block = j / VDF_BITS;
-                let bit = j % VDF_BITS;
+            for j in 0..DF_MATRIX_WIDTH {
+                let block = j / DF_BITS;
+                let bit = j % DF_BITS;
                 // G contribution: c^{block} · 2^{bit}
                 let mut row_j =
                     RingElement::constant((1u64 << bit) % MOD_Q, Representation::IncompleteNTT);
                 row_j *= &c_powers[block];
                 // A contributions: sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
-                for r in 0..VDF_MATRIX_HEIGHT {
-                    temp_a *= (&c_powers[VDF_MATRIX_HEIGHT + r], &vdf_crs_ref.data[(r, j)]);
+                for r in 0..DF_MATRIX_HEIGHT {
+                    temp_a *= (&c_powers[DF_MATRIX_HEIGHT + r], &vdf_crs_ref.data[(r, j)]);
                     row_j += &temp_a;
                 }
                 batched_row.push(row_j);
@@ -175,10 +175,10 @@ impl ProverSumcheckContext {
                 .borrow_mut()
                 .load_from(&batched_row);
 
-            // Compute vdf_step_powers[i] = c^{VDF_STRIDE * i} for i = 0..2K-1
-            let two_k = witness.len() / 2 / VDF_MATRIX_WIDTH;
+            // Compute vdf_step_powers[i] = c^{DF_STRIDE * i} for i = 0..2K-1
+            let two_k = witness.len() / 2 / DF_MATRIX_WIDTH;
             let mut c_stride = RingElement::constant(1, Representation::IncompleteNTT);
-            for _ in 0..VDF_STRIDE {
+            for _ in 0..DF_STRIDE {
                 c_stride *= c;
             }
             let mut step_powers: Vec<RingElement> = Vec::with_capacity(two_k);

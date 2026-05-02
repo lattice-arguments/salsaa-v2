@@ -3,7 +3,7 @@ use crate::{
     protocol::{
         config::{RoundConfig, SalsaaProof},
         sumchecks::context_verifier::VerifierSumcheckContext,
-        vdf::{VDFCrs, compute_ip_df_claim},
+        df::{DFCrs, compute_ip_df_claim},
     },
 };
 use rokoko::{
@@ -101,13 +101,13 @@ pub fn sumcheck_verifier(
     proof: &SalsaaProof,
     verifier_sumcheck_context: &mut VerifierSumcheckContext,
     evaluation_points_outer: &[RingElement],
-    vdf_challenge: Option<&RingElement>,
-    vdf_outputs: Option<(
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &[RingElement; VDF_MATRIX_HEIGHT],
+    df_challenge: Option<&RingElement>,
+    df_outputs: Option<(
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
     )>,
     projection_challenges_unstructured: &Option<[BatchedProjectionChallengesSuccinct; NOF_BATCHES]>,
-    vdf_crs_param: Option<&VDFCrs>,
+    df_crs_param: Option<&DFCrs>,
     hash_wrapper: &mut HashWrapper,
     claims: &HorizontallyAlignedMatrix<RingElement>,
 ) -> (
@@ -171,8 +171,8 @@ pub fn sumcheck_verifier(
         proof.ip_linf_claim.as_ref(),
         compute_ip_df_claim(
             round_config,
-            vdf_challenge,
-            vdf_outputs.map(|(y_0, y_t)| (y_0, y_t, vdf_crs_param.unwrap())),
+            df_challenge,
+            df_outputs.map(|(y_0, y_t)| (y_0, y_t, df_crs_param.unwrap())),
         )
         .as_ref(),
         &type31_claims,

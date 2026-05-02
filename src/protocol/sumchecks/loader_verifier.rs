@@ -4,7 +4,7 @@ use crate::{
         config::{RoundConfig, SalsaaProof},
         project::BatchingChallenges,
         sumchecks::context_verifier::VerifierSumcheckContext,
-        vdf::VDFCrs,
+        df::DFCrs,
     },
 };
 
@@ -37,8 +37,8 @@ impl VerifierSumcheckContext {
         >,
         combination: &[RingElement],
         qe: [QuadraticExtension; HALF_DEGREE],
-        vdf_challenge: Option<&RingElement>,
-        vdf_crs_param: Option<&VDFCrs>,
+        df_challenge: Option<&RingElement>,
+        df_crs_param: Option<&DFCrs>,
     ) {
         let outer_points_len =
             config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
@@ -176,15 +176,15 @@ impl VerifierSumcheckContext {
             }
         }
 
-        if let Some(vdf_eval) = &mut self.vdfevaluation {
-            let c = vdf_challenge.expect("VDF evaluation enabled but no vdf_challenge provided");
-            let vdf_crs_ref =
-                vdf_crs_param.expect("VDF evaluation enabled but no vdf_crs provided");
+        if let Some(df_eval) = &mut self.vdfevaluation {
+            let c = df_challenge.expect("VDF evaluation enabled but no df_challenge provided");
+            let df_crs_ref =
+                df_crs_param.expect("VDF evaluation enabled but no df_crs provided");
 
-            // Compute vdf_batched_row[j] for j = 0..VDF_MATRIX_WIDTH-1:
-            //   vdf_batched_row[j] = c^{j/VDF_BITS} · 2^{j%VDF_BITS} + Σ_{r} c^{HEIGHT+r} · A[r,j]
-            let mut batched_row: Vec<RingElement> = Vec::with_capacity(VDF_MATRIX_WIDTH);
-            let num_local_powers = 2 * VDF_MATRIX_HEIGHT;
+            // Compute df_batched_row[j] for j = 0..DF_MATRIX_WIDTH-1:
+            //   df_batched_row[j] = c^{j/DF_BITS} · 2^{j%DF_BITS} + Σ_{r} c^{HEIGHT+r} · A[r,j]
+            let mut batched_row: Vec<RingElement> = Vec::with_capacity(DF_MATRIX_WIDTH);
+            let num_local_powers = 2 * DF_MATRIX_HEIGHT;
             let mut c_powers: Vec<RingElement> = Vec::with_capacity(num_local_powers);
             c_powers.push(RingElement::constant(1, Representation::IncompleteNTT));
             for _ in 1..num_local_powers {
@@ -192,35 +192,35 @@ impl VerifierSumcheckContext {
                 c_powers.push(&prev * c);
             }
             let mut temp_a = RingElement::zero(Representation::IncompleteNTT);
-            for j in 0..VDF_MATRIX_WIDTH {
-                let block = j / VDF_BITS;
-                let bit = j % VDF_BITS;
+            for j in 0..DF_MATRIX_WIDTH {
+                let block = j / DF_BITS;
+                let bit = j % DF_BITS;
                 let mut row_j =
                     RingElement::constant((1u64 << bit) % MOD_Q, Representation::IncompleteNTT);
                 row_j *= &c_powers[block];
-                for r in 0..VDF_MATRIX_HEIGHT {
-                    temp_a *= (&c_powers[VDF_MATRIX_HEIGHT + r], &vdf_crs_ref.data[(r, j)]);
+                for r in 0..DF_MATRIX_HEIGHT {
+                    temp_a *= (&c_powers[DF_MATRIX_HEIGHT + r], &df_crs_ref.data[(r, j)]);
                     row_j += &temp_a;
                 }
                 batched_row.push(row_j);
             }
-            vdf_eval
+            df_eval
                 .vdf_batched_row_evaluation
                 .borrow_mut()
                 .load_from(&batched_row);
 
-            // Compute MLE[vdf_step_powers](x) where step_powers[i] = c^{VDF_STRIDE * i}
-            // MLE = prod_k ((1-x_k) + x_k · (c^{VDF_STRIDE})^{2^{n-1-k}})
-            // We iterate in reverse with c_power starting at c^{VDF_STRIDE} and squaring.
-            let two_k = config.extended_witness_length / 2 / VDF_MATRIX_WIDTH;
+            // Compute MLE[df_step_powers](x) where step_powers[i] = c^{DF_STRIDE * i}
+            // MLE = prod_k ((1-x_k) + x_k · (c^{DF_STRIDE})^{2^{n-1-k}})
+            // We iterate in reverse with c_power starting at c^{DF_STRIDE} and squaring.
+            let two_k = config.extended_witness_length / 2 / DF_MATRIX_WIDTH;
             let step_powers_num_vars = two_k.ilog2() as usize;
             let prefix = 1usize; // MSB selector bit (column selector)
             let step_powers_vars = &evaluation_points_ring[prefix..prefix + step_powers_num_vars];
 
             let mut mle_step_powers = RingElement::constant(1, Representation::IncompleteNTT);
-            // c_power starts at c^{VDF_STRIDE} (not c^1)
+            // c_power starts at c^{DF_STRIDE} (not c^1)
             let mut c_power = RingElement::constant(1, Representation::IncompleteNTT);
-            for _ in 0..VDF_STRIDE {
+            for _ in 0..DF_STRIDE {
                 c_power *= c;
             }
             let mut temp_sq = RingElement::zero(Representation::IncompleteNTT);
@@ -235,7 +235,7 @@ impl VerifierSumcheckContext {
                 temp_sq *= (&c_power, &c_power);
                 std::mem::swap(&mut c_power, &mut temp_sq);
             }
-            vdf_eval
+            df_eval
                 .vdf_step_powers_evaluation
                 .borrow_mut()
                 .set_result(mle_step_powers);

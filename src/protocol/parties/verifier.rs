@@ -6,7 +6,7 @@ use crate::{
         sumchecks::{
             context_verifier::VerifierSumcheckContext, runner_verifier::sumcheck_verifier,
         },
-        vdf::VDFCrs,
+        df::DFCrs,
     },
 };
 
@@ -37,10 +37,10 @@ pub struct VerifierRoundState<'a> {
     pub evaluation_points_inner: &'a [StructuredRow],
     pub claims: &'a HorizontallyAlignedMatrix<RingElement>,
     pub hash_wrapper: &'a mut HashWrapper,
-    pub vdf_crs_param: Option<&'a VDFCrs>,
-    pub vdf_outputs: Option<(
-        &'a [RingElement; VDF_MATRIX_HEIGHT],
-        &'a [RingElement; VDF_MATRIX_HEIGHT],
+    pub df_crs_param: Option<&'a DFCrs>,
+    pub df_outputs: Option<(
+        &'a [RingElement; DF_MATRIX_HEIGHT],
+        &'a [RingElement; DF_MATRIX_HEIGHT],
     )>,
     pub round_index: usize,
 
@@ -80,10 +80,10 @@ impl<'a> VerifierRoundState<'a> {
         evaluation_points_inner: &'a [StructuredRow],
         claims: &'a HorizontallyAlignedMatrix<RingElement>,
         hash_wrapper: &'a mut HashWrapper,
-        vdf_crs_param: Option<&'a VDFCrs>,
-        vdf_outputs: Option<(
-            &'a [RingElement; VDF_MATRIX_HEIGHT],
-            &'a [RingElement; VDF_MATRIX_HEIGHT],
+        df_crs_param: Option<&'a DFCrs>,
+        df_outputs: Option<(
+            &'a [RingElement; DF_MATRIX_HEIGHT],
+            &'a [RingElement; DF_MATRIX_HEIGHT],
         )>,
         round_index: usize,
     ) -> Self {
@@ -146,9 +146,9 @@ impl<'a> VerifierRoundState<'a> {
             verifier_context,
             &evaluation_points_outer,
             vdf_challenge.as_ref(),
-            vdf_outputs,
+            df_outputs,
             &projection_challenges_unstructured,
-            vdf_crs_param,
+            df_crs_param,
             hash_wrapper,
             claims,
         );
@@ -193,8 +193,8 @@ impl<'a> VerifierRoundState<'a> {
             evaluation_points_inner,
             claims,
             hash_wrapper,
-            vdf_crs_param,
-            vdf_outputs,
+            df_crs_param,
+            df_outputs,
             round_index,
             round_start,
             projection_matrix,
@@ -226,10 +226,10 @@ pub fn verifier_round(
     evaluation_points_inner: &[StructuredRow],
     claims: &HorizontallyAlignedMatrix<RingElement>,
     hash_wrapper: &mut HashWrapper,
-    vdf_crs_param: Option<&VDFCrs>,
-    vdf_outputs: Option<(
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &[RingElement; VDF_MATRIX_HEIGHT],
+    df_crs_param: Option<&DFCrs>,
+    df_outputs: Option<(
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
     )>,
     round_index: usize,
 ) {
@@ -242,8 +242,8 @@ pub fn verifier_round(
         evaluation_points_inner,
         claims,
         hash_wrapper,
-        vdf_crs_param,
-        vdf_outputs,
+        df_crs_param,
+        df_outputs,
         round_index,
     );
 
@@ -447,7 +447,7 @@ fn structured_round(
         &state.combination,
         state.qe,
         state.vdf_challenge.as_ref(),
-        state.vdf_crs_param,
+        state.df_crs_param,
     );
 
     let verifier_eval = *state
@@ -500,8 +500,8 @@ fn structured_round(
         &next_level_eval_points,
         new_claims,
         state.hash_wrapper,
-        state.vdf_crs_param,
-        state.vdf_outputs,
+        state.df_crs_param,
+        state.df_outputs,
         state.round_index + 1,
     );
 }
@@ -646,7 +646,7 @@ fn last_round(state: VerifierRoundState, folded_witness: Vec<RingElement>) {
         &state.combination,
         state.qe,
         state.vdf_challenge.as_ref(),
-        state.vdf_crs_param,
+        state.df_crs_param,
     );
 
     let verifier_eval = *state
@@ -764,7 +764,7 @@ fn unstructured_round(
         &state.combination,
         state.qe,
         state.vdf_challenge.as_ref(),
-        state.vdf_crs_param,
+        state.df_crs_param,
     );
 
     let verifier_eval = *state
@@ -818,8 +818,8 @@ fn unstructured_round(
         &next_level_eval_points,
         &recomposed_new_claims,
         state.hash_wrapper,
-        state.vdf_crs_param,
-        state.vdf_outputs,
+        state.df_crs_param,
+        state.df_outputs,
         state.round_index + 1,
     );
 }

@@ -69,20 +69,20 @@ fn init_prover_vdf_sumcheck(
     main_witness_sumcheck: ElephantCell<dyn HighOrderSumcheckData<Element = RingElement>>,
 ) -> VDFProverSumcheckContext {
     let total_vars = config.extended_witness_length.ilog2() as usize;
-    let two_k = config.extended_witness_length / 2 / VDF_MATRIX_WIDTH; // 2K = total VDF steps across both columns
+    let two_k = config.extended_witness_length / 2 / DF_MATRIX_WIDTH; // 2K = total VDF steps across both columns
 
     // vdf_step_powers: varies over log2(2K) middle variables (one per VDF step)
     // prefix = 1 (main_witness_selector bit), suffix = 6 (element-within-block bits)
     let vdf_step_powers_sumcheck = ElephantCell::new(
-        LinearSumcheck::new_with_prefixed_sufixed_data(two_k, 1, VDF_MATRIX_WIDTH.ilog2() as usize),
+        LinearSumcheck::new_with_prefixed_sufixed_data(two_k, 1, DF_MATRIX_WIDTH.ilog2() as usize),
     );
 
     // vdf_batched_row: varies over 6 LSB variables (element within 64-element block)
     // prefix = total_vars - 6 (all higher bits)
     let vdf_batched_row_sumcheck =
         ElephantCell::new(LinearSumcheck::new_with_prefixed_sufixed_data(
-            VDF_MATRIX_WIDTH,
-            total_vars - VDF_MATRIX_WIDTH.ilog2() as usize,
+            DF_MATRIX_WIDTH,
+            total_vars - DF_MATRIX_WIDTH.ilog2() as usize,
             0,
         ));
 

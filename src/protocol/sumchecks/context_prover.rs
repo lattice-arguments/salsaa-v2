@@ -25,16 +25,16 @@ pub struct ProverSumcheckContext {
 
 // VDF sumcheck: we prove that M · w = b where M is the VDF matrix and b = (-y_0, 0, ..., 0, y_t).
 //
-// A is a VDF_MATRIX_HEIGHT × VDF_MATRIX_WIDTH CRS matrix.
-// G = I_{VDF_MATRIX_HEIGHT} ⊗ g^T is the gadget matrix (block-diagonal binary decomposition).
-//   G is VDF_MATRIX_HEIGHT × VDF_MATRIX_WIDTH, where VDF_MATRIX_WIDTH = VDF_BITS * VDF_MATRIX_HEIGHT.
-//   Each block row r of G has g^T = (1, 2, 4, ..., 2^{VDF_BITS-1}) in columns [r*VDF_BITS..(r+1)*VDF_BITS) and zeros elsewhere.
+// A is a DF_MATRIX_HEIGHT × DF_MATRIX_WIDTH CRS matrix.
+// G = I_{DF_MATRIX_HEIGHT} ⊗ g^T is the gadget matrix (block-diagonal binary decomposition).
+//   G is DF_MATRIX_HEIGHT × DF_MATRIX_WIDTH, where DF_MATRIX_WIDTH = DF_BITS * DF_MATRIX_HEIGHT.
+//   Each block row r of G has g^T = (1, 2, 4, ..., 2^{DF_BITS-1}) in columns [r*DF_BITS..(r+1)*DF_BITS) and zeros elsewhere.
 //
-// Per VDF step, the matrix block involves G and A, each with VDF_MATRIX_HEIGHT rows.
-// The step stride VDF_STRIDE = VDF_MATRIX_HEIGHT ensures that A-powers for step i
+// Per DF step, the matrix block involves G and A, each with DF_MATRIX_HEIGHT rows.
+// The step stride DF_STRIDE = DF_MATRIX_HEIGHT ensures that A-powers for step i
 // overlap with G-powers for step i+1, yielding a telescoping claim.
 //
-// The full VDF matrix has the structure:
+// The full DF matrix has the structure:
 //   |------------------|      |-------- |
 //   | G                |      | -y_0    |   <- G · w_0 = -y_0  (HEIGHT rows)
 //   | A  G             |      |  0      |   <- A · w_0 + G · w_1 = 0  (HEIGHT rows each)
@@ -45,27 +45,27 @@ pub struct ProverSumcheckContext {
 //   |              A   |      |  y_t    |   <- A · w_{last} = y_t  (HEIGHT rows)
 //   |------------------|      |-------- |
 //
-// where y_0, y_t ∈ R^{VDF_MATRIX_HEIGHT} and w = (w_0 // w_1) (columns stacked vertically).
+// where y_0, y_t ∈ R^{DF_MATRIX_HEIGHT} and w = (w_0 // w_1) (columns stacked vertically).
 //
 // We batch all rows with consecutive powers of challenge c.
-// VDF_STRIDE = HEIGHT, so step i uses G-powers c^{HEIGHT*i}..c^{HEIGHT*i + HEIGHT-1}
+// DF_STRIDE = HEIGHT, so step i uses G-powers c^{HEIGHT*i}..c^{HEIGHT*i + HEIGHT-1}
 // and A-powers c^{HEIGHT*(i+1)}..c^{HEIGHT*(i+1) + HEIGHT-1} (which overlap with G of step i+1).
 // This overlap makes intermediate y values telescope in the batched claim.
 //
 // We factor this into:
 //   vdf_batched_row[j] = sum_{r=0}^{HEIGHT-1} c^r · G[r,j] + sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
-//     For j in [r*VDF_BITS..(r+1)*VDF_BITS): G[r,j] = 2^{j - r*VDF_BITS}, other G rows are 0.
-//     So: vdf_batched_row[j] = c^{j/VDF_BITS} · 2^{j%VDF_BITS} + sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
-//   vdf_step_powers[i] = c^{VDF_STRIDE * i}  for i = 0..2K-1
+//     For j in [r*DF_BITS..(r+1)*DF_BITS): G[r,j] = 2^{j - r*DF_BITS}, other G rows are 0.
+//     So: vdf_batched_row[j] = c^{j/DF_BITS} · 2^{j%DF_BITS} + sum_{r=0}^{HEIGHT-1} c^{HEIGHT+r} · A[r,j]
+//   vdf_step_powers[i] = c^{DF_STRIDE * i}  for i = 0..2K-1
 //
 // So the batched relation becomes:
-//   (vdf_step_powers ⊗ vdf_batched_row) · w = sum_{r=0}^{HEIGHT-1} c^r · (-y_0[r]) + c^{VDF_STRIDE*2K+r} · y_t[r]
+//   (vdf_step_powers ⊗ vdf_batched_row) · w = sum_{r=0}^{HEIGHT-1} c^r · (-y_0[r]) + c^{DF_STRIDE*2K+r} · y_t[r]
 //
 // For the verifier:
-//   - MLE[vdf_batched_row] evaluation is a small sumcheck (VDF_MATRIX_WIDTH elements)
+//   - MLE[vdf_batched_row] evaluation is a small sumcheck (DF_MATRIX_WIDTH elements)
 //   - MLE[vdf_step_powers] evaluation is efficient via the tensor structure:
-//     vdf_step_powers[i] = c^{VDF_STRIDE*i}, so MLE = prod_k ((1-x_k) + x_k · c^{VDF_STRIDE * 2^{n-1-k}})
-//     with iterative squaring: c_power starts at c^{VDF_STRIDE} and squares each step.
+//     vdf_step_powers[i] = c^{DF_STRIDE*i}, so MLE = prod_k ((1-x_k) + x_k · c^{DF_STRIDE * 2^{n-1-k}})
+//     with iterative squaring: c_power starts at c^{DF_STRIDE} and squares each step.
 pub struct VDFProverSumcheckContext {
     pub vdf_step_powers_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
     pub vdf_batched_row_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,

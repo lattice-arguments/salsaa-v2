@@ -252,7 +252,7 @@ dependencies = [
 [[package]]
 name = "incomplete-rexl"
 version = "0.1.0"
-source = "git+https://github.com/lattice-arguments/rokoko.git?rev=8f971175214a00fa354e0c08f8bdb6e15060e9d1#8f971175214a00fa354e0c08f8bdb6e15060e9d1"
+source = "git+https://github.com/lattice-arguments/rokoko.git?rev=2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f#2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f"
 dependencies = [
  "rand",
 ]
@@ -537,7 +537,7 @@ checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
 [[package]]
 name = "rokoko"
 version = "0.1.0"
-source = "git+https://github.com/lattice-arguments/rokoko.git?rev=8f971175214a00fa354e0c08f8bdb6e15060e9d1#8f971175214a00fa354e0c08f8bdb6e15060e9d1"
+source = "git+https://github.com/lattice-arguments/rokoko.git?rev=2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f#2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f"
 dependencies = [
  "blake3",
  "criterion",

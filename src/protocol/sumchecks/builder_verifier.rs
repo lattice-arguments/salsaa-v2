@@ -320,8 +320,8 @@ fn init_verifier_vdf_sumcheck(
 
     let vdf_batched_row_evaluation = ElephantCell::new(
         BasicEvaluationLinearSumcheck::new_with_prefixed_sufixed_data(
-            VDF_MATRIX_WIDTH,
-            total_vars - VDF_MATRIX_WIDTH.ilog2() as usize,
+            DF_MATRIX_WIDTH,
+            total_vars - DF_MATRIX_WIDTH.ilog2() as usize,
             0,
         ),
     );

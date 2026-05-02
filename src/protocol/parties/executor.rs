@@ -6,7 +6,7 @@ use crate::{
         sumchecks::{
             builder_prover::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck,
         },
-        vdf::{delay_function, vdf_init},
+        df::{delay_function, df_init},
     },
 };
 
@@ -62,20 +62,20 @@ pub fn execute() {
             println!("norm: binary");
             println!("Using rank={active_rank}");
             println!(
-                "VDF steps: {}",
-                active_witness_dim / (VDF_MATRIX_HEIGHT * VDF_BITS)
+                "DF steps: {}",
+                active_witness_dim / (DF_MATRIX_HEIGHT * DF_BITS)
             );
             println!("=================");
 
-            let vdf_crs = vdf_init();
+            let df_crs = df_init();
 
             println!("DF execution...");
 
-            let y_0: [RingElement; VDF_MATRIX_HEIGHT] =
+            let y_0: [RingElement; DF_MATRIX_HEIGHT] =
                 std::array::from_fn(|_| RingElement::random(Representation::IncompleteNTT));
-            let vdf_output = delay_function(&y_0, witness_height, &vdf_crs);
-            let witness_trace = vdf_output.trace_witness;
-            (witness_trace, Some((y_0, vdf_output.y_t, vdf_crs)))
+            let df_output = delay_function(&y_0, witness_height, &df_crs);
+            let witness_trace = df_output.trace_witness;
+            (witness_trace, Some((y_0, df_output.y_t, df_crs)))
         }
     };
 

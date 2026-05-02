@@ -28,7 +28,7 @@ use crate::{
         config::{RoundConfig, SalsaaProof, SalsaaProofCommon, paste_by_prefix},
         project::BatchingChallenges,
         sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
-        vdf::{VDFCrs, compute_ip_df_claim},
+        df::{DFCrs, compute_ip_df_claim},
     },
 };
 
@@ -41,9 +41,9 @@ fn structured_round(
     claims: &HorizontallyAlignedMatrix<RingElement>,
     hash_wrapper: &mut HashWrapper,
     vdf_params: Option<(
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &VDFCrs,
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &DFCrs,
     )>,
 ) -> SalsaaProof {
     let RoundConfig::Intermediate {
@@ -702,9 +702,9 @@ pub fn prover_round(
     claims: &HorizontallyAlignedMatrix<RingElement>,
     hash_wrapper: &mut HashWrapper,
     vdf_params: Option<(
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &[RingElement; VDF_MATRIX_HEIGHT],
-        &VDFCrs,
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &DFCrs,
     )>,
 ) -> SalsaaProof {
     match config {

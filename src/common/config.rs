@@ -84,14 +84,14 @@ pub fn witness_width() -> usize {
     }
 }
 
-pub const VDF_MATRIX_HEIGHT: usize = 4;
-pub const VDF_BITS: usize = 64;
-pub const VDF_MATRIX_WIDTH: usize = VDF_BITS * VDF_MATRIX_HEIGHT;
+pub const DF_MATRIX_HEIGHT: usize = 4;
+pub const DF_BITS: usize = 64;
+pub const DF_MATRIX_WIDTH: usize = DF_BITS * DF_MATRIX_HEIGHT;
 
-/// Step stride for c-powers: consecutive steps are spaced VDF_MATRIX_HEIGHT apart.
+/// Step stride for c-powers: consecutive steps are spaced DF_MATRIX_HEIGHT apart.
 /// Within each step, G uses c^{0..HEIGHT-1} and A uses c^{HEIGHT..2*HEIGHT-1}.
 /// A-powers for step i overlap with G-powers for step i+1, giving telescoping.
-pub const VDF_STRIDE: usize = VDF_MATRIX_HEIGHT;
+pub const DF_STRIDE: usize = DF_MATRIX_HEIGHT;
 
 pub const PROJECTION_HEIGHT: usize = 256;
 
