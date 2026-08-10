@@ -27,6 +27,7 @@ fn batch_claims(
     ip_l2_claim: Option<&RingElement>,
     ip_linf_claim: Option<&RingElement>,
     ip_df_claim: Option<&RingElement>,
+    air_outputs: Option<(&RingElement, &RingElement)>,
     type31_claims: &[RingElement],
     combination: &[RingElement],
 ) -> RingElement {
@@ -80,6 +81,23 @@ fn batch_claims(
         idx += 1;
     }
 
+    // AIR: transition and shift claims are zero; the boundary claims are the
+    // public input and output of the squaring trace.
+    if config.air {
+        let (input, output) =
+            air_outputs.expect("Missing AIR input/output while air is enabled");
+        idx += 1; // transition claim = 0
+        idx += 1; // shift claim = 0
+        let mut weighted = input.clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+        let mut weighted = output.clone();
+        weighted *= &combination[idx];
+        batched_claim += &weighted;
+        idx += 1;
+    }
+
     // Type31: projection sumcheck claims for IntermediateUnstructured
     for type31_claim in type31_claims {
         let mut weighted = type31_claim.clone();
@@ -106,6 +124,7 @@ pub fn sumcheck_verifier(
         &[RingElement; DF_MATRIX_HEIGHT],
         &[RingElement; DF_MATRIX_HEIGHT],
     )>,
+    air_outputs: Option<(&RingElement, &RingElement)>,
     projection_challenges_unstructured: &Option<[BatchedProjectionChallengesSuccinct; NOF_BATCHES]>,
     df_crs_param: Option<&DFCrs>,
     hash_wrapper: &mut HashWrapper,
@@ -175,6 +194,7 @@ pub fn sumcheck_verifier(
             df_outputs.map(|(y_0, y_t)| (y_0, y_t, df_crs_param.unwrap())),
         )
         .as_ref(),
+        air_outputs,
         &type31_claims,
         &combination,
     );

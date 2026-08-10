@@ -3,9 +3,9 @@ use crate::{
     protocol::{
         config::RoundConfig,
         sumchecks::context_verifier::{
-            L2VerifierSumcheckContext, LinfVerifierSumcheckContext, Type1VerifierSumcheckContext,
-            Type3VerifierSumcheckContext, Type31VerifierSumcheckContext,
-            VDFVerifierSumcheckContext, VerifierSumcheckContext,
+            AirVerifierSumcheckContext, L2VerifierSumcheckContext, LinfVerifierSumcheckContext,
+            Type1VerifierSumcheckContext, Type3VerifierSumcheckContext,
+            Type31VerifierSumcheckContext, VDFVerifierSumcheckContext, VerifierSumcheckContext,
         },
     },
 };
@@ -341,6 +341,113 @@ fn init_verifier_vdf_sumcheck(
     }
 }
 
+fn init_verifier_air_sumcheck(
+    config: &RoundConfig,
+    main_witness_evaluation: ElephantCell<dyn EvaluationSumcheckData<Element = RingElement>>,
+) -> AirVerifierSumcheckContext {
+    let total_vars = config.extended_witness_length.ilog2() as usize;
+    let single_col_height = (config.extended_witness_length >> config.main_witness_prefix.length)
+        / config.main_witness_columns;
+    let mu = single_col_height.ilog2() as usize;
+    let col_bits = config.main_witness_columns.ilog2() as usize;
+
+    let v0_evaluation = ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let v1_evaluation = ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let transition_weight_evaluation =
+        ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let theta_pows_evaluation =
+        ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let theta_shift_evaluation =
+        ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let e_first_evaluation = ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+    let e_last_evaluation = ElephantCell::new(FakeEvaluationLinearSumcheck::<RingElement>::new());
+
+    let gadget_w_evaluation = ElephantCell::new(
+        BasicEvaluationLinearSumcheck::new_with_prefixed_sufixed_data(
+            config.main_witness_columns,
+            total_vars - col_bits - mu,
+            mu,
+        ),
+    );
+    let gadget_shift_evaluation = ElephantCell::new(
+        BasicEvaluationLinearSumcheck::new_with_prefixed_sufixed_data(
+            config.main_witness_columns,
+            total_vars - col_bits - mu,
+            mu,
+        ),
+    );
+
+    let air_selector_evaluation = ElephantCell::new(SelectorEqEvaluation::new(
+        config.main_witness_prefix.prefix << col_bits,
+        config.main_witness_prefix.length + col_bits,
+        total_vars,
+    ));
+
+    let v0_squared = ElephantCell::new(ProductSumcheckEvaluation::new(
+        v0_evaluation.clone(),
+        v0_evaluation.clone(),
+    ));
+    let transition_core = ElephantCell::new(DiffSumcheckEvaluation::new(
+        v0_squared,
+        v1_evaluation.clone(),
+    ));
+    let transition_output = ElephantCell::new(ProductSumcheckEvaluation::new(
+        air_selector_evaluation.clone(),
+        ElephantCell::new(ProductSumcheckEvaluation::new(
+            transition_weight_evaluation.clone(),
+            transition_core,
+        )),
+    ));
+
+    let shift_lhs = ElephantCell::new(ProductSumcheckEvaluation::new(
+        theta_pows_evaluation.clone(),
+        ElephantCell::new(ProductSumcheckEvaluation::new(
+            gadget_w_evaluation.clone(),
+            main_witness_evaluation.clone(),
+        )),
+    ));
+    let shift_rhs = ElephantCell::new(ProductSumcheckEvaluation::new(
+        theta_shift_evaluation.clone(),
+        ElephantCell::new(ProductSumcheckEvaluation::new(
+            gadget_shift_evaluation.clone(),
+            main_witness_evaluation.clone(),
+        )),
+    ));
+    let shift_output = ElephantCell::new(DiffSumcheckEvaluation::new(shift_lhs, shift_rhs));
+
+    let boundary_first_output = ElephantCell::new(ProductSumcheckEvaluation::new(
+        e_first_evaluation.clone(),
+        ElephantCell::new(ProductSumcheckEvaluation::new(
+            gadget_w_evaluation.clone(),
+            main_witness_evaluation.clone(),
+        )),
+    ));
+    let boundary_last_output = ElephantCell::new(ProductSumcheckEvaluation::new(
+        e_last_evaluation.clone(),
+        ElephantCell::new(ProductSumcheckEvaluation::new(
+            gadget_w_evaluation.clone(),
+            main_witness_evaluation.clone(),
+        )),
+    ));
+
+    AirVerifierSumcheckContext {
+        v0_evaluation,
+        v1_evaluation,
+        transition_weight_evaluation,
+        theta_pows_evaluation,
+        theta_shift_evaluation,
+        e_first_evaluation,
+        e_last_evaluation,
+        gadget_w_evaluation,
+        gadget_shift_evaluation,
+        air_selector_evaluation,
+        transition_output,
+        shift_output,
+        boundary_first_output,
+        boundary_last_output,
+    }
+}
+
 pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
     let total_vars = config.extended_witness_length.ilog2() as usize;
 
@@ -426,6 +533,15 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
         None
     };
 
+    let airevaluation = if config.air {
+        Some(init_verifier_air_sumcheck(
+            config,
+            main_witness_evaluation.clone(),
+        ))
+    } else {
+        None
+    };
+
     let type31evaluations = match config {
         RoundConfig::IntermediateUnstructured { .. } | RoundConfig::Last { .. } => {
             Some(array::from_fn(|_| {
@@ -452,6 +568,12 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
     if let Some(vdf) = &vdfevaluation {
         all_outputs.push(vdf.output.clone());
     }
+    if let Some(air) = &airevaluation {
+        all_outputs.push(air.transition_output.clone());
+        all_outputs.push(air.shift_output.clone());
+        all_outputs.push(air.boundary_first_output.clone());
+        all_outputs.push(air.boundary_last_output.clone());
+    }
     if let Some(type31) = &type31evaluations {
         for sc in type31 {
             all_outputs.push(sc.output.clone());
@@ -474,6 +596,7 @@ pub fn init_verifier_sumcheck(config: &RoundConfig) -> VerifierSumcheckContext {
         l2evaluation,
         linfevaluation,
         vdfevaluation,
+        airevaluation,
         combiner_evaluation,
         field_combiner_evaluation,
         next: match config {
