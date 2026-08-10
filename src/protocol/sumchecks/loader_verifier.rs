@@ -1,10 +1,11 @@
 use crate::{
     common::config::*,
     protocol::{
+        air::{AirChallenges, air_gadget_scalar, air_gadget_weights, air_verifier_row_evals},
         config::{RoundConfig, SalsaaProof},
+        df::DFCrs,
         project::BatchingChallenges,
         sumchecks::context_verifier::VerifierSumcheckContext,
-        df::DFCrs,
     },
 };
 
@@ -39,6 +40,7 @@ impl VerifierSumcheckContext {
         qe: [QuadraticExtension; HALF_DEGREE],
         df_challenge: Option<&RingElement>,
         df_crs_param: Option<&DFCrs>,
+        air_challenges: Option<&AirChallenges>,
     ) {
         let outer_points_len =
             config.main_witness_columns.ilog2() as usize + config.main_witness_prefix.length;
@@ -239,6 +241,67 @@ impl VerifierSumcheckContext {
                 .vdf_step_powers_evaluation
                 .borrow_mut()
                 .set_result(mle_step_powers);
+        }
+
+        if let Some(air_eval) = &mut self.airevaluation {
+            let challenges =
+                air_challenges.expect("AIR evaluation enabled but no AIR challenges provided");
+            let k = AIR_DIGIT_COLS;
+            let total_vars = config.extended_witness_length.ilog2() as usize;
+            let single_col_height = (config.extended_witness_length
+                >> config.main_witness_prefix.length)
+                / config.main_witness_columns;
+            let mu = single_col_height.ilog2() as usize;
+
+            // Composed-row evaluations, reconstructed from the per-column
+            // claims by gadget recomposition: MLE[V_j](r) = Σ_m 2^{bm}·claim_m.
+            let mut v0_eval = ZERO.clone();
+            let mut v1_eval = ZERO.clone();
+            let mut temp = ZERO.clone();
+            for m in 0..k {
+                let shift = air_gadget_scalar(m);
+                temp *= (&proof.claims[(0, m)], &shift);
+                v0_eval += &temp;
+                temp *= (&proof.claims[(0, k + m)], &shift);
+                v1_eval += &temp;
+            }
+            air_eval.v0_evaluation.borrow_mut().set_result(v0_eval);
+            air_eval.v1_evaluation.borrow_mut().set_result(v1_eval);
+
+            // Succinct weight evaluations at the row variables (the last μ
+            // entries of the MS-first evaluation point tree).
+            let rows_ms_first = &evaluation_points_ring[total_vars - mu..];
+            let row_evals =
+                air_verifier_row_evals(&challenges.theta, &challenges.eta, rows_ms_first);
+            air_eval
+                .transition_weight_evaluation
+                .borrow_mut()
+                .set_result(row_evals.transition_weight);
+            air_eval
+                .theta_pows_evaluation
+                .borrow_mut()
+                .set_result(row_evals.theta_pows);
+            air_eval
+                .theta_shift_evaluation
+                .borrow_mut()
+                .set_result(row_evals.theta_shift);
+            air_eval
+                .e_first_evaluation
+                .borrow_mut()
+                .set_result(row_evals.e_first);
+            air_eval
+                .e_last_evaluation
+                .borrow_mut()
+                .set_result(row_evals.e_last);
+
+            air_eval
+                .gadget_w_evaluation
+                .borrow_mut()
+                .load_from(&air_gadget_weights(config.main_witness_columns, false));
+            air_eval
+                .gadget_shift_evaluation
+                .borrow_mut()
+                .load_from(&air_gadget_weights(config.main_witness_columns, true));
         }
 
         self.combiner_evaluation

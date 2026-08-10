@@ -28,6 +28,7 @@ pub struct VerifierSumcheckContext {
     pub l2evaluation: Option<L2VerifierSumcheckContext>,
     pub linfevaluation: Option<LinfVerifierSumcheckContext>,
     pub vdfevaluation: Option<VDFVerifierSumcheckContext>,
+    pub airevaluation: Option<AirVerifierSumcheckContext>,
     pub combiner_evaluation: ElephantCell<CombinerEvaluation<RingElement>>,
     pub field_combiner_evaluation: ElephantCell<RingToFieldCombinerEvaluation>,
     pub next: Option<Box<VerifierSumcheckContext>>,
@@ -48,6 +49,27 @@ pub struct VDFVerifierSumcheckContext {
     pub vdf_step_powers_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
     pub vdf_batched_row_evaluation: ElephantCell<BasicEvaluationLinearSumcheck<RingElement>>,
     pub output: ElephantCell<ProductSumcheckEvaluation>,
+}
+
+// Verifier counterpart of `AirProverSumcheckContext`: the succinct row weights
+// (w_trans, θ̃, θshift, e_first, e_last) are fake evaluations whose results are
+// computed from the challenges; the composed rows V₀, V₁ are
+// reconstructed from the per-column claims by gadget recomposition.
+pub struct AirVerifierSumcheckContext {
+    pub v0_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub v1_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub transition_weight_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub theta_pows_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub theta_shift_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub e_first_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub e_last_evaluation: ElephantCell<FakeEvaluationLinearSumcheck<RingElement>>,
+    pub gadget_w_evaluation: ElephantCell<BasicEvaluationLinearSumcheck<RingElement>>,
+    pub gadget_shift_evaluation: ElephantCell<BasicEvaluationLinearSumcheck<RingElement>>,
+    pub air_selector_evaluation: ElephantCell<SelectorEqEvaluation>,
+    pub transition_output: ElephantCell<ProductSumcheckEvaluation>,
+    pub shift_output: ElephantCell<DiffSumcheckEvaluation>,
+    pub boundary_first_output: ElephantCell<ProductSumcheckEvaluation>,
+    pub boundary_last_output: ElephantCell<ProductSumcheckEvaluation>,
 }
 
 pub struct Type1VerifierSumcheckContext {
