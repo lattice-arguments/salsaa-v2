@@ -15,7 +15,13 @@ use rokoko::{
 use crate::{
     common::config::*,
     protocol::{
-        project::BatchingChallenges, sumchecks::context_prover::ProverSumcheckContext, df::DFCrs,
+        air::{
+            AirLoaderData, air_e_first_table, air_e_last_table, air_gadget_weights,
+            air_theta_tables, air_transition_weight_table,
+        },
+        df::DFCrs,
+        project::BatchingChallenges,
+        sumchecks::context_prover::ProverSumcheckContext,
     },
 };
 
@@ -33,6 +39,7 @@ impl ProverSumcheckContext {
         >,
         vdf_challenge: Option<&RingElement>,
         df_crs_param: Option<&DFCrs>,
+        air: Option<&AirLoaderData>,
     ) {
         self.witness_sumcheck.borrow_mut().load_from(witness);
         self.witness_conjugated_sumcheck
@@ -190,6 +197,48 @@ impl ProverSumcheckContext {
             vdf.vdf_step_powers_sumcheck
                 .borrow_mut()
                 .load_from(&step_powers);
+        }
+
+        if let Some(air_ctx) = &mut self.airsumcheck {
+            let air_data = air.expect("AIR sumcheck enabled but no AIR loader data provided");
+            let h = air_data.v0.len();
+
+            air_ctx.v0_sumcheck.borrow_mut().load_from(&air_data.v0);
+            air_ctx.v1_sumcheck.borrow_mut().load_from(&air_data.v1);
+
+            air_ctx
+                .transition_weight_sumcheck
+                .borrow_mut()
+                .load_from(&air_transition_weight_table(&air_data.challenges.eta));
+
+            let (theta_pows, theta_shift) = air_theta_tables(&air_data.challenges.theta, h);
+            air_ctx
+                .theta_pows_sumcheck
+                .borrow_mut()
+                .load_from(&theta_pows);
+            air_ctx
+                .theta_shift_sumcheck
+                .borrow_mut()
+                .load_from(&theta_shift);
+
+            air_ctx
+                .e_first_sumcheck
+                .borrow_mut()
+                .load_from_with_non_zero_end(&air_e_first_table(h), 1);
+            air_ctx
+                .e_last_sumcheck
+                .borrow_mut()
+                .load_from(&air_e_last_table(h));
+
+            let cols = air_ctx.gadget_w_sumcheck.borrow().data.len();
+            air_ctx
+                .gadget_w_sumcheck
+                .borrow_mut()
+                .load_from(&air_gadget_weights(cols, false));
+            air_ctx
+                .gadget_shift_sumcheck
+                .borrow_mut()
+                .load_from(&air_gadget_weights(cols, true));
         }
     }
 }

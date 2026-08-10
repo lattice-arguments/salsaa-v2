@@ -17,13 +17,14 @@ use crate::{
     protocol::{
         config::RoundConfig,
         sumchecks::context_prover::{
-            L2ProverSumcheckContext, LinfSumcheckContext, ProverSumcheckContext,
-            Type1ProverSumcheckContext, Type3ProverSumcheckContext, Type31ProverSumcheckContext,
-            VDFProverSumcheckContext,
+            AirProverSumcheckContext, L2ProverSumcheckContext, LinfSumcheckContext,
+            ProverSumcheckContext, Type1ProverSumcheckContext, Type3ProverSumcheckContext,
+            Type31ProverSumcheckContext, VDFProverSumcheckContext,
         },
         sumchecks::helpers::sumcheck_from_prefix,
     },
 };
+use rokoko::protocol::sumcheck_utils::selector_eq::SelectorEq;
 
 fn init_prover_type_1_sumcheck(
     config: &RoundConfig,
@@ -98,6 +99,122 @@ fn init_prover_vdf_sumcheck(
         vdf_step_powers_sumcheck,
         vdf_batched_row_sumcheck,
         output,
+    }
+}
+
+fn init_prover_air_sumcheck(
+    config: &RoundConfig,
+    main_witness_sumcheck: ElephantCell<dyn HighOrderSumcheckData<Element = RingElement>>,
+) -> AirProverSumcheckContext {
+    let total_vars = config.extended_witness_length.ilog2() as usize;
+    let single_col_height = (config.extended_witness_length >> config.main_witness_prefix.length)
+        / config.main_witness_columns;
+    let mu = single_col_height.ilog2() as usize;
+    let row_prefix = total_vars - mu;
+    let col_bits = config.main_witness_columns.ilog2() as usize;
+
+    // Row-variable tables (prefix-dummied over everything above the row bits).
+    let row_table =
+        || ElephantCell::new(LinearSumcheck::new_with_prefixed_sufixed_data(
+            single_col_height,
+            row_prefix,
+            0,
+        ));
+    let v0_sumcheck = row_table();
+    let v1_sumcheck = row_table();
+    let transition_weight_sumcheck = row_table();
+    let theta_pows_sumcheck = row_table();
+    let theta_shift_sumcheck = row_table();
+    let e_first_sumcheck = row_table();
+    let e_last_sumcheck = row_table();
+
+    // Column-variable tables (same shape as the outer evaluation weights).
+    let col_table = || {
+        ElephantCell::new(LinearSumcheck::new_with_prefixed_sufixed_data(
+            config.main_witness_columns,
+            total_vars - col_bits - mu,
+            mu,
+        ))
+    };
+    let gadget_w_sumcheck = col_table();
+    let gadget_shift_sumcheck = col_table();
+
+    // Selector pinning the prefix + column bits of the transition component to
+    // (main witness prefix, column 0), so the transition sums exactly over the
+    // row hypercube.
+    let air_selector_sumcheck = ElephantCell::new(SelectorEq::<RingElement>::new(
+        config.main_witness_prefix.prefix << col_bits,
+        config.main_witness_prefix.length + col_bits,
+        total_vars,
+    ));
+
+    // transition: sel ⊗ w_trans ⊗ (V₀² − V₁), i.e. f(V) = Y₀² − Y₁.
+    //
+    // Degree budget: Polynomial holds 4 coefficients. In the row rounds
+    // V₀² − V₁ is quadratic and w_trans linear.
+    // Keep w_trans as the left operand: mul_poly_into does linear × quadratic but panics on quadratic × linear.
+    let v0_squared = ElephantCell::new(ProductSumcheck::new(
+        v0_sumcheck.clone(),
+        v0_sumcheck.clone(),
+    ));
+    let transition_core = ElephantCell::new(DiffSumcheck::new(v0_squared, v1_sumcheck.clone()));
+    let transition_output = ElephantCell::new(ProductSumcheck::new(
+        air_selector_sumcheck.clone(),
+        ElephantCell::new(ProductSumcheck::new(
+            transition_weight_sumcheck.clone(),
+            transition_core,
+        )),
+    ));
+
+    // shift: θ̃ ⊗ g_w ⊗ witness − θshift ⊗ g_shift ⊗ witness, forcing
+    // V₁ = shift(V₀).
+    let shift_lhs = ElephantCell::new(ProductSumcheck::new(
+        theta_pows_sumcheck.clone(),
+        ElephantCell::new(ProductSumcheck::new(
+            gadget_w_sumcheck.clone(),
+            main_witness_sumcheck.clone(),
+        )),
+    ));
+    let shift_rhs = ElephantCell::new(ProductSumcheck::new(
+        theta_shift_sumcheck.clone(),
+        ElephantCell::new(ProductSumcheck::new(
+            gadget_shift_sumcheck.clone(),
+            main_witness_sumcheck.clone(),
+        )),
+    ));
+    let shift_output = ElephantCell::new(DiffSumcheck::new(shift_lhs, shift_rhs));
+
+    // boundary: e_first ⊗ g_w ⊗ witness = x, e_last ⊗ g_w ⊗ witness = y
+    let boundary_first_output = ElephantCell::new(ProductSumcheck::new(
+        e_first_sumcheck.clone(),
+        ElephantCell::new(ProductSumcheck::new(
+            gadget_w_sumcheck.clone(),
+            main_witness_sumcheck.clone(),
+        )),
+    ));
+    let boundary_last_output = ElephantCell::new(ProductSumcheck::new(
+        e_last_sumcheck.clone(),
+        ElephantCell::new(ProductSumcheck::new(
+            gadget_w_sumcheck.clone(),
+            main_witness_sumcheck.clone(),
+        )),
+    ));
+
+    AirProverSumcheckContext {
+        v0_sumcheck,
+        v1_sumcheck,
+        transition_weight_sumcheck,
+        theta_pows_sumcheck,
+        theta_shift_sumcheck,
+        e_first_sumcheck,
+        e_last_sumcheck,
+        gadget_w_sumcheck,
+        gadget_shift_sumcheck,
+        air_selector_sumcheck,
+        transition_output,
+        shift_output,
+        boundary_first_output,
+        boundary_last_output,
     }
 }
 
@@ -419,6 +536,15 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         None
     };
 
+    let airsumcheck = if config.air {
+        Some(init_prover_air_sumcheck(
+            config,
+            main_witness_sumcheck.clone(),
+        ))
+    } else {
+        None
+    };
+
     let mut all_outputs: Vec<ElephantCell<dyn HighOrderSumcheckData<Element = RingElement>>> =
         vec![];
     for type1 in &type1sumcheck {
@@ -436,6 +562,12 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
     }
     if let Some(vdf) = &vdfsumcheck {
         all_outputs.push(vdf.output.clone());
+    }
+    if let Some(air) = &airsumcheck {
+        all_outputs.push(air.transition_output.clone());
+        all_outputs.push(air.shift_output.clone());
+        all_outputs.push(air.boundary_first_output.clone());
+        all_outputs.push(air.boundary_last_output.clone());
     }
     if let Some(type31) = &type31sumchecks {
         for sc in type31 {
@@ -459,6 +591,7 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         l2sumcheck,
         linfsumcheck,
         vdfsumcheck,
+        airsumcheck,
         next: match config {
             RoundConfig::Intermediate { next, .. } => match next.as_ref() {
                 Some(next_config) => Some(Box::new(init_prover_sumcheck(crs, next_config))),

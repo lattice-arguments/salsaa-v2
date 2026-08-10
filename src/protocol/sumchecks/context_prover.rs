@@ -7,6 +7,35 @@ use rokoko::{
     },
 };
 
+// AIR (squaring-trace) sumcheck. Four claim components over
+// the row variables (see `protocol::air`):
+//   transition: sel ⊗ w_trans ⊗ (V₀² − V₁)                      = 0
+//   shift:      θ̃ ⊗ g_w ⊗ witness − θshift ⊗ g_shift ⊗ witness = 0
+//   boundary:   e_first ⊗ g_w ⊗ witness = x,  e_last ⊗ g_w ⊗ witness = y
+// where w_trans = eq(η, ·)·(1 − eq(·, 1⃗)) is kept as one table so that the
+// transition round polynomial stays cubic (`Polynomial` holds 4 coefficients).
+// The transition runs on auxiliary tables holding the *composed* rows V₀, V₁
+// (gadget recombinations of the committed digit columns); the verifier
+// reconstructs their final evaluations from the per-column claims, which ties
+// them back to the commitment. The linear claims act on the committed witness
+// directly through the gadget column weights.
+pub struct AirProverSumcheckContext {
+    pub v0_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub v1_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub transition_weight_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub theta_pows_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub theta_shift_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub e_first_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub e_last_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub gadget_w_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub gadget_shift_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
+    pub air_selector_sumcheck: ElephantCell<SelectorEq<RingElement>>,
+    pub transition_output: ElephantCell<ProductSumcheck<RingElement>>,
+    pub shift_output: ElephantCell<DiffSumcheck<RingElement>>,
+    pub boundary_first_output: ElephantCell<ProductSumcheck<RingElement>>,
+    pub boundary_last_output: ElephantCell<ProductSumcheck<RingElement>>,
+}
+
 pub struct ProverSumcheckContext {
     pub witness_sumcheck: ElephantCell<LinearSumcheck<RingElement>>,
     pub witness_conjugated_sumcheck: ElephantCell<LinearSumcheck<RingElement>>, // for verifying norms. Should be optional?
@@ -18,6 +47,7 @@ pub struct ProverSumcheckContext {
     pub l2sumcheck: Option<L2ProverSumcheckContext>,
     pub linfsumcheck: Option<LinfSumcheckContext>,
     pub vdfsumcheck: Option<VDFProverSumcheckContext>, // for verifying the VDF, only used in the first round
+    pub airsumcheck: Option<AirProverSumcheckContext>, // for verifying the squaring-trace AIR, only used in the first round
     pub combiner: ElephantCell<Combiner<RingElement>>,
     pub field_combiner: ElephantCell<RingToFieldCombiner>,
     pub next: Option<Box<ProverSumcheckContext>>,
@@ -177,6 +207,21 @@ impl ProverSumcheckContext {
             vdf.vdf_batched_row_sumcheck
                 .borrow_mut()
                 .partial_evaluate(r);
+        }
+
+        if let Some(air) = &mut self.airsumcheck {
+            air.v0_sumcheck.borrow_mut().partial_evaluate(r);
+            air.v1_sumcheck.borrow_mut().partial_evaluate(r);
+            air.transition_weight_sumcheck
+                .borrow_mut()
+                .partial_evaluate(r);
+            air.theta_pows_sumcheck.borrow_mut().partial_evaluate(r);
+            air.theta_shift_sumcheck.borrow_mut().partial_evaluate(r);
+            air.e_first_sumcheck.borrow_mut().partial_evaluate(r);
+            air.e_last_sumcheck.borrow_mut().partial_evaluate(r);
+            air.gadget_w_sumcheck.borrow_mut().partial_evaluate(r);
+            air.gadget_shift_sumcheck.borrow_mut().partial_evaluate(r);
+            air.air_selector_sumcheck.borrow_mut().partial_evaluate(r);
         }
     }
 }
