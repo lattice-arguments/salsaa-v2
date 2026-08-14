@@ -2,7 +2,7 @@ use rokoko::{
     common::{
         arithmetic::field_to_ring_element_into,
         hash::HashWrapper,
-        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         structured_row::PreprocessedRow,
         sumcheck_element::SumcheckElement,
@@ -87,10 +87,18 @@ pub fn sumcheck(
         &evaluation_point_to_structured_row(&evaluation_points_inner),
     );
     let mut temp = RingElement::zero(Representation::IncompleteNTT);
-    let mut claims =
-        HorizontallyAlignedMatrix::new_zero_preallocated(2, config.main_witness_columns);
+    let mut claims = HorizontallyAlignedMatrix {
+        data: vec![
+            RingElement::zero(Representation::IncompleteNTT);
+            2 * config.main_witness_columns
+        ],
+        width: config.main_witness_columns,
+        height: 2,
+    };
     let mut claim_over_projection = match config {
-        RoundConfig::Intermediate { .. } => Some(new_vec_zero_preallocated(2)),
+        RoundConfig::Intermediate { .. } => {
+            Some(vec![RingElement::zero(Representation::IncompleteNTT); 2])
+        }
         _ => None,
     };
 

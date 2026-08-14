@@ -10,11 +10,11 @@ use rokoko::{
     common::{
         arithmetic::{field_to_ring_element_into, precompute_structured_values_fast},
         hash::HashWrapper,
-        matrix::{HorizontallyAlignedMatrix, new_vec_zero_preallocated},
+        matrix::HorizontallyAlignedMatrix,
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         sumcheck_element::SumcheckElement,
     },
-    protocol::project_2::BatchedProjectionChallengesSuccinct,
+    protocol::project_fine::BatchedProjectionChallengesSuccinct,
 };
 
 /// Computes the batched claim from individual sumcheck claims.
@@ -121,7 +121,7 @@ pub fn sumcheck_verifier(
         .combiner_evaluation
         .borrow()
         .sumchecks_count();
-    let mut combination = new_vec_zero_preallocated(num_sumchecks);
+    let mut combination = vec![RingElement::zero(Representation::IncompleteNTT); num_sumchecks];
     hash_wrapper.sample_ring_element_vec_into(&mut combination);
 
     let mut combination_to_field = RingElement::zero(Representation::IncompleteNTT);

@@ -1,5 +1,6 @@
 use rokoko::common::{
-    hash::HashWrapper, matrix::new_vec_zero_preallocated, ring_arithmetic::RingElement,
+    hash::HashWrapper,
+    ring_arithmetic::{Representation, RingElement},
     structured_row::StructuredRow,
 };
 
@@ -26,13 +27,22 @@ impl BatchingChallenges {
                 assert!(c0_len > 0, "c0_len must be greater than 0");
                 let mut result = Self {
                     c0: StructuredRow {
-                        tensor_layers: new_vec_zero_preallocated(c0_len.ilog2() as usize),
+                        tensor_layers: vec![
+                            RingElement::zero(Representation::IncompleteNTT);
+                            c0_len.ilog2() as usize
+                        ],
                     },
                     c1: StructuredRow {
-                        tensor_layers: new_vec_zero_preallocated(c1_len.ilog2() as usize),
+                        tensor_layers: vec![
+                            RingElement::zero(Representation::IncompleteNTT);
+                            c1_len.ilog2() as usize
+                        ],
                     },
                     c2: StructuredRow {
-                        tensor_layers: new_vec_zero_preallocated(c2_len.ilog2() as usize),
+                        tensor_layers: vec![
+                            RingElement::zero(Representation::IncompleteNTT);
+                            c2_len.ilog2() as usize
+                        ],
                     },
                 };
 

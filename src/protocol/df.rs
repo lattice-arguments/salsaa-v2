@@ -1,6 +1,6 @@
 use crate::{common::config::*, protocol::config::RoundConfig};
 use rokoko::common::{
-    matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+    matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
     ring_arithmetic::{Representation, RingElement},
 };
 
@@ -29,7 +29,7 @@ pub fn delay_function(
     let mut trace_witness = VerticallyAlignedMatrix {
         height: dim,
         width: 2,
-        data: new_vec_zero_preallocated(dim * 2),
+        data: vec![RingElement::zero(Representation::IncompleteNTT); dim * 2],
         used_cols: 2,
     };
 

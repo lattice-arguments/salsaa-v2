@@ -15,7 +15,7 @@ use rokoko::{
         arithmetic::ONE,
         decomposition::compose_from_decomposed,
         hash::HashWrapper,
-        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         projection_matrix::ProjectionMatrix,
         ring_arithmetic::{QuadraticExtension, Representation, RingElement},
         structured_row::{PreprocessedRow, StructuredRow},
@@ -24,7 +24,9 @@ use rokoko::{
         commitment::{BasicCommitment, commit_basic},
         crs::CRS,
         open::evaluation_point_to_structured_row,
-        project_2::{BatchedProjectionChallengesSuccinct, verifier_sample_projection_challenges},
+        project_fine::{
+            BatchedProjectionChallengesSuccinct, verifier_sample_projection_challenges_collectively,
+        },
     },
 };
 
@@ -119,9 +121,11 @@ impl<'a> VerifierRoundState<'a> {
                     ProjectionMatrix::new(*projection_ratio, PROJECTION_HEIGHT);
                 projection_matrix.sample(hash_wrapper);
 
-                Some(std::array::from_fn(|_| {
-                    verifier_sample_projection_challenges(&projection_matrix, config, hash_wrapper)
-                }))
+                Some(verifier_sample_projection_challenges_collectively(
+                    &projection_matrix,
+                    config,
+                    hash_wrapper,
+                ))
             }
             _ => None,
         };
@@ -136,7 +140,8 @@ impl<'a> VerifierRoundState<'a> {
         };
 
         // outer evaluation points
-        let mut evaluation_points_outer = new_vec_zero_preallocated(config.main_witness_columns);
+        let mut evaluation_points_outer =
+            vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
         hash_wrapper.sample_ring_element_vec_into(&mut evaluation_points_outer);
 
         // sumcheck
@@ -154,7 +159,8 @@ impl<'a> VerifierRoundState<'a> {
         );
 
         // folding challenges
-        let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
+        let mut folding_challenges =
+            vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
         hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
 
         let outer_points_len =

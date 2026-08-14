@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 rayon = "1.12.0"
-rokoko = { git = "https://github.com/lattice-arguments/rokoko.git", rev = "2bf7c9d6ccd7af54307769e4df6d01c7ef7b5b9f" }
+rokoko = { git = "https://github.com/lattice-arguments/rokoko.git" }
 
 [features]
 default = ["p-26", "incomplete-rexl"]

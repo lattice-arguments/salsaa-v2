@@ -17,7 +17,8 @@ use rokoko::{
         structured_row::{PreprocessedRow, StructuredRow},
     },
     protocol::{
-        open::evaluation_point_to_structured_row, project_2::BatchedProjectionChallengesSuccinct,
+        open::evaluation_point_to_structured_row,
+        project_fine::BatchedProjectionChallengesSuccinct,
         sumchecks::helpers::projection_flatter_1_times_matrix,
     },
 };

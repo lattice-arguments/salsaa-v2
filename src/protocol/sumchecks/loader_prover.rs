@@ -1,13 +1,12 @@
 use rokoko::{
     common::{
         arithmetic::field_to_ring_element_into,
-        matrix::new_vec_zero_preallocated,
         projection_matrix::ProjectionMatrix,
         ring_arithmetic::{Representation, RingElement},
         structured_row::{PreprocessedRow, StructuredRow},
     },
     protocol::{
-        project_2::BatchedProjectionChallenges,
+        project_fine::BatchedProjectionChallenges,
         sumchecks::helpers::projection_flatter_1_times_matrix,
     },
 };
@@ -47,7 +46,7 @@ impl ProverSumcheckContext {
                 &c1_expanded,
             );
             let mut flattened_projection_ring =
-                new_vec_zero_preallocated(flattened_projection.len());
+                vec![RingElement::zero(Representation::IncompleteNTT); flattened_projection.len()];
 
             for (i, el) in flattened_projection.iter().enumerate() {
                 field_to_ring_element_into(&mut flattened_projection_ring[i], el);

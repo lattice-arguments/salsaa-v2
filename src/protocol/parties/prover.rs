@@ -4,7 +4,7 @@ use rokoko::{
         decomposition::{compose_from_decomposed, decompose_chunks_into},
         estimator::{RSISParameters, estimate_rsis_security},
         hash::HashWrapper,
-        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix, new_vec_zero_preallocated},
+        matrix::{HorizontallyAlignedMatrix, VerticallyAlignedMatrix},
         norms,
         projection_matrix::ProjectionMatrix,
         ring_arithmetic::{Representation, RingElement},
@@ -16,8 +16,8 @@ use rokoko::{
         crs::CRS,
         fold::fold,
         open::evaluation_point_to_structured_row,
-        project::{prepare_i16_witness, project},
-        project_2::{batch_projection_n_times, project_coefficients},
+        project_coarse::{prepare_i16_witness, project},
+        project_fine::{batch_projection_n_times, project_coefficients},
         sumcheck_utils::common::HighOrderSumcheckData,
     },
 };
@@ -82,9 +82,12 @@ fn structured_round(
     if DEBUG {
         println!("witness.data.len {:?}", witness.data.len());
     }
-    let mut extended_witness =
-        new_vec_zero_preallocated(witness.data.len() << config.main_witness_prefix.length);
-    let mut witness_conjugated = new_vec_zero_preallocated(witness.data.len());
+    let mut extended_witness = vec![
+        RingElement::zero(Representation::IncompleteNTT);
+        witness.data.len() << config.main_witness_prefix.length
+    ];
+    let mut witness_conjugated =
+        vec![RingElement::zero(Representation::IncompleteNTT); witness.data.len()];
     for (i, w) in witness.data.iter().enumerate() {
         w.conjugate_into(&mut witness_conjugated[i]);
     }
@@ -103,7 +106,8 @@ fn structured_round(
         projection_prefix,
     );
 
-    let mut evaluation_points_outer = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut evaluation_points_outer =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_ring_element_vec_into(&mut evaluation_points_outer);
 
     sumcheck_context.load_data(
@@ -162,7 +166,8 @@ fn structured_round(
         config,
     );
 
-    let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut folding_challenges =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
     let folded_witness = fold(witness, &folding_challenges);
 
@@ -197,7 +202,10 @@ fn structured_round(
     let mut decomposed_split_witness = VerticallyAlignedMatrix {
         height: split_witness.height,
         width: decomposed_width,
-        data: new_vec_zero_preallocated(split_witness.height * decomposed_width),
+        data: vec![
+            RingElement::zero(Representation::IncompleteNTT);
+            split_witness.height * decomposed_width
+        ],
         used_cols: decomposed_width,
     };
 
@@ -380,9 +388,12 @@ fn unstructured_round(
         println!("witness.data.len {:?}", witness.data.len());
     }
 
-    let mut extended_witness =
-        new_vec_zero_preallocated(witness.data.len() << config.main_witness_prefix.length);
-    let mut witness_conjugated = new_vec_zero_preallocated(witness.data.len());
+    let mut extended_witness = vec![
+        RingElement::zero(Representation::IncompleteNTT);
+        witness.data.len() << config.main_witness_prefix.length
+    ];
+    let mut witness_conjugated =
+        vec![RingElement::zero(Representation::IncompleteNTT); witness.data.len()];
     for (i, w) in witness.data.iter().enumerate() {
         w.conjugate_into(&mut witness_conjugated[i]);
     }
@@ -396,7 +407,8 @@ fn unstructured_round(
         &config.main_witness_prefix,
     );
 
-    let mut evaluation_points_outer = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut evaluation_points_outer =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_ring_element_vec_into(&mut evaluation_points_outer);
 
     sumcheck_context.load_data(
@@ -461,7 +473,8 @@ fn unstructured_round(
     let (claims_out, _, polys, evaluation_points) =
         sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
 
-    let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut folding_challenges =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
     let folded_witness = fold(witness, &folding_challenges);
 
@@ -475,7 +488,10 @@ fn unstructured_round(
     let mut decomposed_split_witness = VerticallyAlignedMatrix {
         height: split_witness.height,
         width: decomposed_width,
-        data: new_vec_zero_preallocated(split_witness.height * decomposed_width),
+        data: vec![
+            RingElement::zero(Representation::IncompleteNTT);
+            split_witness.height * decomposed_width
+        ],
         used_cols: decomposed_width,
     };
     let h = split_witness.height;
@@ -619,9 +635,12 @@ fn last_round(
     if DEBUG {
         println!("witness.data.len {:?}", witness.data.len());
     }
-    let mut extended_witness =
-        new_vec_zero_preallocated(witness.data.len() << config.main_witness_prefix.length);
-    let mut witness_conjugated = new_vec_zero_preallocated(witness.data.len());
+    let mut extended_witness = vec![
+        RingElement::zero(Representation::IncompleteNTT);
+        witness.data.len() << config.main_witness_prefix.length
+    ];
+    let mut witness_conjugated =
+        vec![RingElement::zero(Representation::IncompleteNTT); witness.data.len()];
     for (i, w) in witness.data.iter().enumerate() {
         w.conjugate_into(&mut witness_conjugated[i]);
     }
@@ -635,7 +654,8 @@ fn last_round(
         &config.main_witness_prefix,
     );
 
-    let mut evaluation_points_outer = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut evaluation_points_outer =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_ring_element_vec_into(&mut evaluation_points_outer);
 
     sumcheck_context.load_data(
@@ -675,7 +695,8 @@ fn last_round(
 
     let (claims_out, _, polys, _) = sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
 
-    let mut folding_challenges = new_vec_zero_preallocated(config.main_witness_columns);
+    let mut folding_challenges =
+        vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
     let folded_witness = fold(witness, &folding_challenges);
 
@@ -778,7 +799,7 @@ fn load_combination_challenge(
     hash_wrapper: &mut HashWrapper,
 ) {
     let num_sumchecks = sumcheck_context.combiner.borrow().sumchecks_count();
-    let mut combination = new_vec_zero_preallocated(num_sumchecks);
+    let mut combination = vec![RingElement::zero(Representation::IncompleteNTT); num_sumchecks];
     hash_wrapper.sample_ring_element_vec_into(&mut combination);
     sumcheck_context
         .combiner

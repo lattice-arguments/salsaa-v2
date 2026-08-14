@@ -1,6 +1,5 @@
 use rokoko::common::config::DEGREE;
 use rokoko::common::init_common;
-use rokoko::common::pool::{load_and_preallocate, save_access_stats};
 use salsaa::common::config::{Mode, mode, rank, set_mode, set_rank, set_witness_dim, witness_dim};
 use salsaa::protocol::parties::executor::execute;
 
@@ -181,9 +180,7 @@ fn main() {
         println!("✗ AVX-512 is only available on x86_64 architecture");
     }
 
-    load_and_preallocate("pool_stats.txt").expect("Failed to load stats");
     init_common();
     println!("Running executor...");
     execute();
-    save_access_stats("pool_stats.txt").expect("Failed to save stats");
 }
