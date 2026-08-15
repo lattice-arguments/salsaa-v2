@@ -6,7 +6,7 @@ The codebase is an auxiliary material for *SALSAA: Sumcheck-Aided Lattice-based 
 
 ## Build and Run instructions
 
-The protocol can be compiled and run directly with the command, for example executing the SNARK protocol with rank 10 and witness dimension of 2^26 (in Z_q elements).
+The protocol can be compiled and run directly with the command, for example executing the SNARK protocol with rank 11 and witness dimension of 2^26 (in Z_q elements).
 ```
 cargo +nightly run --release --features debug-hardness -- -r 11 -w 26 -m snark
 ```
