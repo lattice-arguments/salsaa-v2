@@ -13,7 +13,7 @@ default = ["p-26", "incomplete-rexl"]
 incomplete-rexl = ["rokoko/incomplete-rexl"]
 unsafe-sumcheck = ["rokoko/unsafe-sumcheck"]
 debug-hardness = ["rokoko/debug-hardness"]
-debug-decomp = ["rokoko/debug-decomp"]
+debug = ["rokoko/debug-decomp"]
 parallel = []
 
 p-30 = ["rokoko/p-30"]

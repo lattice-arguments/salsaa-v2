@@ -37,6 +37,7 @@ For the best performance, it is advisable to run the protocol twice. During the 
 * `incomplete-rexl`: enables the pure-Rust ring arithmetic back-end
 * `unsafe-sumcheck`: enables zero-cost borrow checking by using `UnsafeCell` instead of `RefCell` in sumcheck subprotocols
 * `debug-hardness`: verifies the hardness of underlying SIS instances
+* `debug`: additional checks for sumcheck claims, decomposition, and other operations
 
 ## License
 
