@@ -4,9 +4,6 @@ A Rust implementation of Salsaa, a framework for constructing efficient and vers
 
 The codebase is an auxiliary material for *SALSAA: Sumcheck-Aided Lattice-based Succinct Arguments and Applications*.
 
-## Experiments
-The codebase has been benchmarked on a Dell PowerEdge XE9680,  with a 2x32 core Xeon Platinum 8562Y+ 2.8GHz processor. Results of the benchmarks for each class of parameters can be found on the `/experiments` folder, together with benchmarks of RoKoKo and Greyhound.
-
 ## Build and Run instructions
 
 The protocol can be compiled and run directly with the command, for example executing the SNARK protocol with rank 10 and witness dimension of 2^26 (in Z_q elements).
