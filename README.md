@@ -26,9 +26,6 @@ It is required to compile and run the project on an AVX-512-enabled processor to
 Different processors may support different AVX-512 instruction subsets, [as listed here](https://en.wikipedia.org/wiki/AVX-512#CPUs_with_AVX-512).
 Performance will be slower when the required instructions are not present, falling back to scalar code otherwise.
 
-## Cached allocations
-For the best performance, it is advisable to run the protocol twice. During the first run, the protocol collects the allocation descriptions (and stores them as a file, while printing a number of warnings about an unpopulated cache). On the next run, those allocations will be done in advance, which impact especially the commitment and verifier performance.
-
 ## Features
 
 * `incomplete-rexl`: enables the pure-Rust ring arithmetic back-end
