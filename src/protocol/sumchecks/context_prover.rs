@@ -122,6 +122,48 @@ pub struct Type3ProverSumcheckContext {
 }
 
 impl ProverSumcheckContext {
+    fn release_linear_sumcheck(sumcheck: &ElephantCell<LinearSumcheck<RingElement>>) {
+        let sumcheck = sumcheck.borrow_mut();
+        sumcheck.data.clear();
+        sumcheck.data.shrink_to_fit();
+    }
+
+    pub fn release_large_buffers(&mut self) {
+        Self::release_linear_sumcheck(&self.witness_sumcheck);
+        Self::release_linear_sumcheck(&self.witness_conjugated_sumcheck);
+
+        for type1 in &self.type1sumcheck {
+            Self::release_linear_sumcheck(&type1.inner_evaluation_sumcheck);
+            Self::release_linear_sumcheck(&type1.outer_evaluation_sumcheck);
+        }
+
+        if let Some(type3) = &self.type3sumcheck {
+            Self::release_linear_sumcheck(&type3.flattened_projection_matrix_sumcheck);
+            Self::release_linear_sumcheck(&type3.c0r_sumcheck);
+            Self::release_linear_sumcheck(&type3.c1r_sumcheck);
+            Self::release_linear_sumcheck(&type3.c2r_sumcheck);
+            Self::release_linear_sumcheck(&type3.c0l_sumcheck);
+            Self::release_linear_sumcheck(&type3.c2l_sumcheck);
+        }
+
+        if let Some(type31sumchecks) = &self.type31sumchecks {
+            for type31 in type31sumchecks {
+                Self::release_linear_sumcheck(&type31.c_2_sumcheck);
+                Self::release_linear_sumcheck(&type31.c_0_sumcheck);
+                Self::release_linear_sumcheck(&type31.j_batched_sumcheck);
+            }
+        }
+
+        if let Some(linf) = &self.linfsumcheck {
+            Self::release_linear_sumcheck(&linf.all_one_constant_sumcheck);
+        }
+
+        if let Some(vdf) = &self.vdfsumcheck {
+            Self::release_linear_sumcheck(&vdf.vdf_step_powers_sumcheck);
+            Self::release_linear_sumcheck(&vdf.vdf_batched_row_sumcheck);
+        }
+    }
+
     pub fn partial_evaluate_all(&mut self, r: &RingElement) {
         self.witness_sumcheck.borrow_mut().partial_evaluate(r);
         self.witness_conjugated_sumcheck

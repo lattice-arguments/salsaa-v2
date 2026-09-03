@@ -1,12 +1,15 @@
 use rokoko::common::config::DEGREE;
 use rokoko::common::init_common;
-use salsaa::common::config::{Mode, mode, rank, set_mode, set_rank, set_witness_dim, witness_dim};
+use salsaa::common::config::{
+    Mode, mode, rank, set_low_memory, set_mode, set_rank, set_witness_dim, witness_dim,
+};
 use salsaa::protocol::parties::executor::execute;
 
 struct CliConfig {
     rank: Option<usize>,
     witness_dim: Option<usize>,
     mode: Option<Mode>,
+    low_memory: bool,
 }
 
 fn parse_mode(value: &str) -> Result<Mode, String> {
@@ -48,6 +51,7 @@ fn parse_cli_config() -> Result<CliConfig, String> {
         rank: None,
         witness_dim: None,
         mode: None,
+        low_memory: false,
     };
     let mut args = std::env::args().skip(1);
 
@@ -81,6 +85,8 @@ fn parse_cli_config() -> Result<CliConfig, String> {
             cfg.witness_dim = Some(parse_witness_dim_log(value)?);
         } else if let Some(value) = arg.strip_prefix("-w=") {
             cfg.witness_dim = Some(parse_witness_dim_log(value)?);
+        } else if arg == "--low-memory" || arg == "--memory-saving" {
+            cfg.low_memory = true;
         } else if arg == "--mode" || arg == "-m" {
             let value = args
                 .next()
@@ -92,9 +98,10 @@ fn parse_cli_config() -> Result<CliConfig, String> {
             cfg.mode = Some(parse_mode(value)?);
         } else if arg == "--help" || arg == "-h" {
             println!(
-                "Usage: salsaa [--rank <usize>] [--wit-dim-log <log2>] [--mode <snark|vdf|folding-scheme>]"
+                "Usage: salsaa [--rank <usize>] [--wit-dim-log <log2>] [--mode <snark|vdf|folding-scheme>] [--low-memory]"
             );
             println!("Short flags: -r <usize> -w <log2> -m <mode>");
+            println!("Use --low-memory to enable memory-saving prover allocation.");
             std::process::exit(0);
         } else {
             return Err(format!("unknown argument: {arg}"));
@@ -126,6 +133,13 @@ fn main() {
 
     if let Some(cli_mode) = cli_cfg.mode {
         set_mode(cli_mode).unwrap_or_else(|err| {
+            eprintln!("Configuration error: {err}");
+            std::process::exit(2);
+        });
+    }
+
+    if cli_cfg.low_memory {
+        set_low_memory(true).unwrap_or_else(|err| {
             eprintln!("Configuration error: {err}");
             std::process::exit(2);
         });
