@@ -459,15 +459,19 @@ pub fn init_prover_sumcheck(crs: &CRS, config: &RoundConfig) -> ProverSumcheckCo
         l2sumcheck,
         linfsumcheck,
         vdfsumcheck,
-        next: match config {
-            RoundConfig::Intermediate { next, .. } => match next.as_ref() {
-                Some(next_config) => Some(Box::new(init_prover_sumcheck(crs, next_config))),
-                None => None,
-            },
-            RoundConfig::IntermediateUnstructured { next, .. } => {
-                Some(Box::new(init_prover_sumcheck(crs, next)))
+        next: if low_memory() {
+            None
+        } else {
+            match config {
+                RoundConfig::Intermediate { next, .. } => match next.as_ref() {
+                    Some(next_config) => Some(Box::new(init_prover_sumcheck(crs, next_config))),
+                    None => None,
+                },
+                RoundConfig::IntermediateUnstructured { next, .. } => {
+                    Some(Box::new(init_prover_sumcheck(crs, next)))
+                }
+                RoundConfig::Last { .. } => None,
             }
-            RoundConfig::Last { .. } => None,
         },
     }
 }

@@ -28,6 +28,7 @@ pub const EXPECTED_SEC_PARAM: usize = 128;
 static RANK_OVERRIDE: OnceLock<usize> = OnceLock::new();
 static WITNESS_DIM_OVERRIDE: OnceLock<usize> = OnceLock::new();
 static MODE_OVERRIDE: OnceLock<Mode> = OnceLock::new();
+static LOW_MEMORY_OVERRIDE: OnceLock<bool> = OnceLock::new();
 
 pub fn set_rank(rank: usize) -> Result<(), String> {
     if rank == 0 {
@@ -57,6 +58,17 @@ pub fn set_witness_dim(witness_dim: usize) -> Result<(), String> {
 #[inline(always)]
 pub fn witness_dim() -> usize {
     *WITNESS_DIM_OVERRIDE.get().unwrap_or(&WITNESS_DIM)
+}
+
+pub fn set_low_memory(low_memory: bool) -> Result<(), String> {
+    LOW_MEMORY_OVERRIDE
+        .set(low_memory)
+        .map_err(|_| "low-memory mode has already been set".to_string())
+}
+
+#[inline(always)]
+pub fn low_memory() -> bool {
+    *LOW_MEMORY_OVERRIDE.get().unwrap_or(&false)
 }
 
 pub fn set_mode(mode: Mode) -> Result<(), String> {

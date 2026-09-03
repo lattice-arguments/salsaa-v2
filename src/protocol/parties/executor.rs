@@ -2,11 +2,14 @@ use crate::{
     common::config::*,
     protocol::{
         config::{CONFIG, to_kb},
-        parties::{prover::prover_round, verifier::verifier_round},
+        df::{delay_function, df_init},
+        parties::{
+            prover::{prover_round, prover_round_low_memory},
+            verifier::verifier_round,
+        },
         sumchecks::{
             builder_prover::init_prover_sumcheck, builder_verifier::init_verifier_sumcheck,
         },
-        df::{delay_function, df_init},
     },
 };
 
@@ -108,18 +111,33 @@ pub fn execute() {
 
     println!("===== STARTING PROVER =====");
     let start = std::time::Instant::now();
-    let proof = prover_round(
-        &crs,
-        &witness,
-        &CONFIG,
-        &mut sumcheck_context,
-        &vec![], // no evaluation points for first round
-        &no_claims,
-        &mut HashWrapper::new(),
-        vdf_params
-            .as_ref()
-            .map(|(y_0, y_t, vdf_crs)| (y_0, y_t, vdf_crs)),
-    );
+    let proof = if low_memory() {
+        prover_round_low_memory(
+            &crs,
+            witness,
+            &CONFIG,
+            &mut sumcheck_context,
+            &vec![], // no evaluation points for first round
+            &no_claims,
+            &mut HashWrapper::new(),
+            vdf_params
+                .as_ref()
+                .map(|(y_0, y_t, vdf_crs)| (y_0, y_t, vdf_crs)),
+        )
+    } else {
+        prover_round(
+            &crs,
+            &witness,
+            &CONFIG,
+            &mut sumcheck_context,
+            &vec![], // no evaluation points for first round
+            &no_claims,
+            &mut HashWrapper::new(),
+            vdf_params
+                .as_ref()
+                .map(|(y_0, y_t, vdf_crs)| (y_0, y_t, vdf_crs)),
+        )
+    };
     let prove_duration = start.elapsed().as_millis();
     println!("TOTAL Prove time: {:?} ms", prove_duration);
 

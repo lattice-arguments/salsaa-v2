@@ -28,13 +28,30 @@ use crate::{
         config::{RoundConfig, SalsaaProof, SalsaaProofCommon, paste_by_prefix},
         df::{DFCrs, compute_ip_df_claim},
         project::BatchingChallenges,
-        sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
+        sumchecks::{
+            builder_prover::init_prover_sumcheck, context_prover::ProverSumcheckContext,
+            runner_prover::sumcheck,
+        },
     },
 };
 
+enum ProverWitness<'a> {
+    Borrowed(&'a VerticallyAlignedMatrix<RingElement>),
+    Owned(VerticallyAlignedMatrix<RingElement>),
+}
+
+impl<'a> ProverWitness<'a> {
+    fn as_ref(&self) -> &VerticallyAlignedMatrix<RingElement> {
+        match self {
+            ProverWitness::Borrowed(witness) => witness,
+            ProverWitness::Owned(witness) => witness,
+        }
+    }
+}
+
 fn structured_round(
     crs: &CRS,
-    witness: &VerticallyAlignedMatrix<RingElement>,
+    witness_input: ProverWitness<'_>,
     config: &RoundConfig,
     sumcheck_context: &mut ProverSumcheckContext,
     evaluation_points_inner: &Vec<StructuredRow>,
@@ -60,11 +77,13 @@ fn structured_round(
         *split_factor == 1 || *split_factor == 2,
         "split_factor must be 1 or 2"
     );
+    let witness = witness_input.as_ref();
 
-    let witness_16 = prepare_i16_witness(witness);
+    let witness_16 = prepare_i16_witness(&witness);
     let mut projection_matrix = ProjectionMatrix::new(witness.width, 256);
     projection_matrix.sample(hash_wrapper);
     let mut projected_witness = project(&witness_16, &projection_matrix);
+    drop(witness_16);
     projected_witness.width = 1;
     projected_witness.used_cols = 1;
     projected_witness.height = witness.height;
@@ -92,8 +111,8 @@ fn structured_round(
         w.conjugate_into(&mut witness_conjugated[i]);
     }
 
-    let ip_l2_claim = compute_ip_l2_claim(config, witness, &witness_conjugated);
-    let ip_linf_claim = compute_ip_linf_claim(config, witness, &witness_conjugated);
+    let ip_l2_claim = compute_ip_l2_claim(config, &witness, &witness_conjugated);
+    let ip_linf_claim = compute_ip_linf_claim(config, &witness, &witness_conjugated);
 
     paste_by_prefix(
         &mut extended_witness,
@@ -161,15 +180,23 @@ fn structured_round(
     let (claims_out, claim_over_projection, polys, evaluation_points) = sumcheck(
         sumcheck_context,
         hash_wrapper,
-        witness,
+        &witness,
         Some(&projected_witness),
         config,
     );
+    if low_memory() {
+        sumcheck_context.release_large_buffers();
+    }
+    drop(extended_witness);
+    drop(witness_conjugated);
 
     let mut folding_challenges =
         vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
-    let folded_witness = fold(witness, &folding_challenges);
+    let folded_witness = fold(&witness, &folding_challenges);
+    if low_memory() {
+        drop(witness_input);
+    }
 
     if DEBUG && *split_factor == 2 {
         let commitment_to_folded_witness = commit_basic(crs, &folded_witness, rank());
@@ -297,21 +324,40 @@ fn structured_round(
         &decomposed_split_witness,
         2,
     );
+    drop(projected_witness);
+    let next_witness_width = decomposed_split_witness.width;
+
     let next_level_eval_points = vec![
         evaluation_point_to_structured_row(&new_evaluation_points_inner),
         evaluation_point_to_structured_row(&new_evaluation_points_inner_conjugated),
     ];
     let next_level_proof = match next.as_ref() {
-        Some(next_config) => Some(Box::new(prover_round(
-            crs,
-            &decomposed_split_witness,
-            next_config,
-            sumcheck_context.next.as_mut().unwrap(),
-            &next_level_eval_points,
-            &new_claims,
-            hash_wrapper,
-            None,
-        ))),
+        Some(next_config) => {
+            if low_memory() {
+                let mut next_sumcheck_context = init_prover_sumcheck(crs, next_config);
+                Some(Box::new(prover_round_low_memory(
+                    crs,
+                    decomposed_split_witness,
+                    next_config,
+                    &mut next_sumcheck_context,
+                    &next_level_eval_points,
+                    &new_claims,
+                    hash_wrapper,
+                    None,
+                )))
+            } else {
+                Some(Box::new(prover_round(
+                    crs,
+                    &decomposed_split_witness,
+                    next_config,
+                    sumcheck_context.next.as_mut().unwrap(),
+                    &next_level_eval_points,
+                    &new_claims,
+                    hash_wrapper,
+                    None,
+                )))
+            }
+        }
         None => None,
     };
 
@@ -321,7 +367,7 @@ fn structured_round(
         );
         println!(
             "Next round witness height and width (after folding, splitting, and decomposition) would have been: height={}, width={}",
-            split_witness.height, decomposed_split_witness.width
+            split_witness.height, next_witness_width
         );
     }
 
@@ -343,7 +389,7 @@ fn structured_round(
 
 fn unstructured_round(
     crs: &CRS,
-    witness: &VerticallyAlignedMatrix<RingElement>,
+    witness_input: ProverWitness<'_>,
     config: &RoundConfig,
     sumcheck_context: &mut ProverSumcheckContext,
     evaluation_points_inner: &Vec<StructuredRow>,
@@ -364,12 +410,13 @@ fn unstructured_round(
         *split_factor == 1 || *split_factor == 2,
         "split_factor must be 1 or 2"
     );
+    let witness = witness_input.as_ref();
 
     let mut projection_matrix = ProjectionMatrix::new(*projection_ratio, PROJECTION_HEIGHT);
     projection_matrix.sample(hash_wrapper);
-    let projection_ct = project_coefficients(witness, &projection_matrix);
+    let projection_ct = project_coefficients(&witness, &projection_matrix);
     let (batched_image, unstructured_batching_challenges) = batch_projection_n_times(
-        witness,
+        &witness,
         &projection_matrix,
         hash_wrapper,
         NOF_BATCHES,
@@ -398,8 +445,8 @@ fn unstructured_round(
         w.conjugate_into(&mut witness_conjugated[i]);
     }
 
-    let ip_l2_claim = compute_ip_l2_claim(config, witness, &witness_conjugated);
-    let ip_linf_claim = compute_ip_linf_claim(config, witness, &witness_conjugated);
+    let ip_l2_claim = compute_ip_l2_claim(config, &witness, &witness_conjugated);
+    let ip_linf_claim = compute_ip_linf_claim(config, &witness, &witness_conjugated);
 
     paste_by_prefix(
         &mut extended_witness,
@@ -471,12 +518,20 @@ fn unstructured_round(
     }
 
     let (claims_out, _, polys, evaluation_points) =
-        sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
+        sumcheck(sumcheck_context, hash_wrapper, &witness, None, config);
+    if low_memory() {
+        sumcheck_context.release_large_buffers();
+    }
+    drop(extended_witness);
+    drop(witness_conjugated);
 
     let mut folding_challenges =
         vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
-    let folded_witness = fold(witness, &folding_challenges);
+    let folded_witness = fold(&witness, &folding_challenges);
+    if low_memory() {
+        drop(witness_input);
+    }
 
     let split_witness = VerticallyAlignedMatrix {
         height: folded_witness.height / *split_factor,
@@ -563,16 +618,30 @@ fn unstructured_round(
         evaluation_point_to_structured_row(&new_evaluation_points_inner),
         evaluation_point_to_structured_row(&new_evaluation_points_inner_conjugated),
     ];
-    let next_level_proof = prover_round(
-        crs,
-        &decomposed_split_witness,
-        next,
-        sumcheck_context.next.as_mut().unwrap(),
-        &next_level_eval_points,
-        &new_claims,
-        hash_wrapper,
-        None,
-    );
+    let next_level_proof = if low_memory() {
+        let mut next_sumcheck_context = init_prover_sumcheck(crs, next);
+        prover_round_low_memory(
+            crs,
+            decomposed_split_witness,
+            next,
+            &mut next_sumcheck_context,
+            &next_level_eval_points,
+            &new_claims,
+            hash_wrapper,
+            None,
+        )
+    } else {
+        prover_round(
+            crs,
+            &decomposed_split_witness,
+            next,
+            sumcheck_context.next.as_mut().unwrap(),
+            &next_level_eval_points,
+            &new_claims,
+            hash_wrapper,
+            None,
+        )
+    };
 
     let common = SalsaaProofCommon {
         ip_l2_claim,
@@ -591,7 +660,7 @@ fn unstructured_round(
 }
 
 fn last_round(
-    witness: &VerticallyAlignedMatrix<RingElement>,
+    witness_input: ProverWitness<'_>,
     config: &RoundConfig, // must be RoundConfig::Last
     sumcheck_context: &mut ProverSumcheckContext,
     evaluation_points_inner: &Vec<StructuredRow>,
@@ -613,11 +682,13 @@ fn last_round(
         "Sampling projection matrix for unstructured projection with ratio {}",
         projection_ratio
     );
+    let witness = witness_input.as_ref();
+
     let mut projection_matrix = ProjectionMatrix::new(*projection_ratio, PROJECTION_HEIGHT);
     projection_matrix.sample(hash_wrapper);
-    let projection_ct = project_coefficients(witness, &projection_matrix);
+    let projection_ct = project_coefficients(&witness, &projection_matrix);
     let (batched_image, unstructured_batching_challenges) = batch_projection_n_times(
-        witness,
+        &witness,
         &projection_matrix,
         hash_wrapper,
         NOF_BATCHES,
@@ -645,8 +716,8 @@ fn last_round(
         w.conjugate_into(&mut witness_conjugated[i]);
     }
 
-    let ip_l2_claim = compute_ip_l2_claim(config, witness, &witness_conjugated);
-    let ip_linf_claim = compute_ip_linf_claim(config, witness, &witness_conjugated);
+    let ip_l2_claim = compute_ip_l2_claim(config, &witness, &witness_conjugated);
+    let ip_linf_claim = compute_ip_linf_claim(config, &witness, &witness_conjugated);
 
     paste_by_prefix(
         &mut extended_witness,
@@ -693,12 +764,19 @@ fn last_round(
         );
     }
 
-    let (claims_out, _, polys, _) = sumcheck(sumcheck_context, hash_wrapper, witness, None, config);
+    let (claims_out, _, polys, _) =
+        sumcheck(sumcheck_context, hash_wrapper, &witness, None, config);
+    if low_memory() {
+        sumcheck_context.release_large_buffers();
+    }
 
     let mut folding_challenges =
         vec![RingElement::zero(Representation::IncompleteNTT); config.main_witness_columns];
     hash_wrapper.sample_biased_ternary_ring_element_vec_into(&mut folding_challenges);
-    let folded_witness = fold(witness, &folding_challenges);
+    let folded_witness = fold(&witness, &folding_challenges);
+    if low_memory() {
+        drop(witness_input);
+    }
 
     let common = SalsaaProofCommon {
         ip_l2_claim,
@@ -711,6 +789,51 @@ fn last_round(
         folded_witness: folded_witness.data,
         projection_image_ct: projection_ct,
         projection_image_batched: batched_image,
+    }
+}
+
+fn prover_round_inner(
+    crs: &CRS,
+    witness_input: ProverWitness<'_>,
+    config: &RoundConfig,
+    sumcheck_context: &mut ProverSumcheckContext,
+    evaluation_points_inner: &Vec<StructuredRow>,
+    claims: &HorizontallyAlignedMatrix<RingElement>,
+    hash_wrapper: &mut HashWrapper,
+    vdf_params: Option<(
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &DFCrs,
+    )>,
+) -> SalsaaProof {
+    match config {
+        RoundConfig::Intermediate { .. } => structured_round(
+            crs,
+            witness_input,
+            config,
+            sumcheck_context,
+            evaluation_points_inner,
+            claims,
+            hash_wrapper,
+            vdf_params,
+        ),
+        RoundConfig::IntermediateUnstructured { .. } => unstructured_round(
+            crs,
+            witness_input,
+            config,
+            sumcheck_context,
+            evaluation_points_inner,
+            claims,
+            hash_wrapper,
+        ),
+        RoundConfig::Last { .. } => last_round(
+            witness_input,
+            config,
+            sumcheck_context,
+            evaluation_points_inner,
+            claims,
+            hash_wrapper,
+        ),
     }
 }
 
@@ -728,35 +851,42 @@ pub fn prover_round(
         &DFCrs,
     )>,
 ) -> SalsaaProof {
-    match config {
-        RoundConfig::Intermediate { .. } => structured_round(
-            crs,
-            witness,
-            config,
-            sumcheck_context,
-            evaluation_points_inner,
-            claims,
-            hash_wrapper,
-            vdf_params,
-        ),
-        RoundConfig::IntermediateUnstructured { .. } => unstructured_round(
-            crs,
-            witness,
-            config,
-            sumcheck_context,
-            evaluation_points_inner,
-            claims,
-            hash_wrapper,
-        ),
-        RoundConfig::Last { .. } => last_round(
-            witness,
-            config,
-            sumcheck_context,
-            evaluation_points_inner,
-            claims,
-            hash_wrapper,
-        ),
-    }
+    prover_round_inner(
+        crs,
+        ProverWitness::Borrowed(witness),
+        config,
+        sumcheck_context,
+        evaluation_points_inner,
+        claims,
+        hash_wrapper,
+        vdf_params,
+    )
+}
+
+pub fn prover_round_low_memory(
+    crs: &CRS,
+    witness: VerticallyAlignedMatrix<RingElement>,
+    config: &RoundConfig,
+    sumcheck_context: &mut ProverSumcheckContext,
+    evaluation_points_inner: &Vec<StructuredRow>,
+    claims: &HorizontallyAlignedMatrix<RingElement>,
+    hash_wrapper: &mut HashWrapper,
+    vdf_params: Option<(
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &[RingElement; DF_MATRIX_HEIGHT],
+        &DFCrs,
+    )>,
+) -> SalsaaProof {
+    prover_round_inner(
+        crs,
+        ProverWitness::Owned(witness),
+        config,
+        sumcheck_context,
+        evaluation_points_inner,
+        claims,
+        hash_wrapper,
+        vdf_params,
+    )
 }
 
 fn compute_ip_l2_claim(
