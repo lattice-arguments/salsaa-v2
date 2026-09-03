@@ -25,13 +25,22 @@ fn parse_witness_dim_log(value: &str) -> Result<usize, String> {
         .parse::<usize>()
         .map_err(|_| format!("invalid witness dim log value: {value}"))?;
 
-    if log_dim >= usize::BITS as usize {
+    let degree_log = DEGREE.ilog2() as usize;
+
+    if log_dim < degree_log {
+        return Err(format!(
+            "witness dim log must be at least {degree_log} for ring degree {DEGREE}: {log_dim}"
+        ));
+    }
+
+    let ring_dim_log = log_dim - degree_log;
+    if ring_dim_log >= usize::BITS as usize {
         return Err(format!(
             "witness dim log is too large for this platform: {log_dim}"
         ));
     }
 
-    Ok(1usize << (log_dim - DEGREE.ilog2() as usize)) // we multiply by degree to get the total witness dim
+    Ok(1usize << ring_dim_log)
 }
 
 fn parse_cli_config() -> Result<CliConfig, String> {
@@ -56,12 +65,21 @@ fn parse_cli_config() -> Result<CliConfig, String> {
                 .parse::<usize>()
                 .map_err(|_| format!("invalid rank value: {value}"))?;
             cfg.rank = Some(parsed);
-        } else if arg == "--wit-dim-log" || arg == "-w" {
+        } else if let Some(value) = arg.strip_prefix("-r=") {
+            let parsed = value
+                .parse::<usize>()
+                .map_err(|_| format!("invalid rank value: {value}"))?;
+            cfg.rank = Some(parsed);
+        } else if arg == "--wit-dim-log" || arg == "--witness-dim-log" || arg == "-w" {
             let value = args
                 .next()
                 .ok_or_else(|| "missing value for --wit-dim-log".to_string())?;
             cfg.witness_dim = Some(parse_witness_dim_log(&value)?);
         } else if let Some(value) = arg.strip_prefix("--wit-dim-log=") {
+            cfg.witness_dim = Some(parse_witness_dim_log(value)?);
+        } else if let Some(value) = arg.strip_prefix("--witness-dim-log=") {
+            cfg.witness_dim = Some(parse_witness_dim_log(value)?);
+        } else if let Some(value) = arg.strip_prefix("-w=") {
             cfg.witness_dim = Some(parse_witness_dim_log(value)?);
         } else if arg == "--mode" || arg == "-m" {
             let value = args
@@ -70,11 +88,13 @@ fn parse_cli_config() -> Result<CliConfig, String> {
             cfg.mode = Some(parse_mode(&value)?);
         } else if let Some(value) = arg.strip_prefix("--mode=") {
             cfg.mode = Some(parse_mode(value)?);
+        } else if let Some(value) = arg.strip_prefix("-m=") {
+            cfg.mode = Some(parse_mode(value)?);
         } else if arg == "--help" || arg == "-h" {
             println!(
                 "Usage: salsaa [--rank <usize>] [--wit-dim-log <log2>] [--mode <snark|vdf|folding-scheme>]"
             );
-            println!("Short flags: -r <usize> -m <mode>");
+            println!("Short flags: -r <usize> -w <log2> -m <mode>");
             std::process::exit(0);
         } else {
             return Err(format!("unknown argument: {arg}"));
@@ -111,9 +131,10 @@ fn main() {
         });
     }
 
-    let witness_dim_log = witness_dim().ilog2();
+    let witness_dim_zq = witness_dim() * DEGREE;
+    let witness_dim_log = witness_dim_zq.ilog2();
     println!(
-        "Using rank={}, witness_dim=2^{witness_dim_log} ({}), mode={:?}",
+        "Using rank={}, witness_dim=2^{witness_dim_log} Z_q elements ({} ring elements), mode={:?}",
         rank(),
         witness_dim(),
         mode()
