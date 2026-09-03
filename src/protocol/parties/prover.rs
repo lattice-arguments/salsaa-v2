@@ -26,9 +26,9 @@ use crate::{
     common::config::*,
     protocol::{
         config::{RoundConfig, SalsaaProof, SalsaaProofCommon, paste_by_prefix},
+        df::{DFCrs, compute_ip_df_claim},
         project::BatchingChallenges,
         sumchecks::{context_prover::ProverSumcheckContext, runner_prover::sumcheck},
-        df::{DFCrs, compute_ip_df_claim},
     },
 };
 
@@ -513,7 +513,7 @@ fn unstructured_round(
 
         let sec = estimate_rsis_security(&RSISParameters {
             m: config.witness_height() as u64,
-            n: RANK as u64,
+            n: rank() as u64,
             length_bound: norm_unfolded as u64,
         });
         let sec_par = sec.unwrap().secpar;
